@@ -1,4 +1,4 @@
-name: Build iOS Tweak (ESP)
+name: Build iOSTweak (ESP)
 
 on:
   push:
