@@ -21,7 +21,8 @@ jobs:
 
           SDK_URL="https://github.com/theos/sdks/archive/refs/heads/master.zip"
           curl -fSL --retry 3 --retry-delay 2 "$SDK_URL" -o /tmp/sdks.zip
-          unzip -q /tmp/sdks.zip -d /tmp/sdks_extracted
+          mkdir -p /tmp/sdks_extracted
+          ditto -x -k /tmp/sdks.zip /tmp/sdks_extracted
           cp -R /tmp/sdks_extracted/sdks-master/*.sdk "$HOME/theos/sdks/" || true
           ls -la "$HOME/theos/sdks"
           rm -rf /tmp/sdks.zip /tmp/sdks_extracted
@@ -40,7 +41,7 @@ jobs:
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless || make FINALPACKAGE=1
           DYLIB_PATH=$(find .theos/obj -name "ESP.dylib" | head -n 1)
           if [ -z "$DYLIB_PATH" ]; then
-            echo "ESP.dylib bulunamadi!"
+            echo "ESP.dylib tapılmadı!"
             exit 1
           fi
           ldid -S "$DYLIB_PATH"
