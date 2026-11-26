@@ -30,7 +30,7 @@ jobs:
             chmod +x "$THEOS/bin/ldid" 2>/dev/null || true
           fi
 
-      - name: Write Makefile
+      - name: Write Makefile and control
         run: |
           set -e
           cat << 'EOF' > Makefile
@@ -72,8 +72,21 @@ jobs:
           ESP_FRAMEWORKS = UIKit Foundation Metal MetalKit QuartzCore CoreGraphics CoreText Security AVFoundation
           ESP_LIBRARIES = c++ z
 
-          include $(THEOS_MAKE_PATH)/tweak.mk
+          include $(THEOS)/makefiles/tweak.mk
           EOF
+
+          if [ ! -f control ] && [ ! -f layout/DEBIAN/control ]; then
+            cat << 'EOF' > control
+          Package: com.esp.tweak
+          Name: ESP
+          Version: 1.0.0
+          Architecture: iphoneos-arm64
+          Description: iOS Tweak
+          Maintainer: Developer
+          Author: Developer
+          Section: Tweaks
+          EOF
+          fi
 
       - name: Build tweak with Theos
         run: |
@@ -89,8 +102,9 @@ jobs:
           rm -rf release_out
           mkdir -p release_out
 
-          find . -name "ESP.dylib" -exec cp -f {} release_out/ \;
-          find . -name "*.deb" -exec cp -f {} release_out/ \;
+          find . -path "./.theos/*" -name "ESP.dylib" -exec cp -f {} release_out/ \; 2>/dev/null || true
+          find . -maxdepth 4 -name "ESP.dylib" -exec cp -f {} release_out/ \; 2>/dev/null || true
+          find . -maxdepth 4 -name "*.deb" -exec cp -f {} release_out/ \; 2>/dev/null || true
 
           if [ -z "$(ls -A release_out)" ]; then
             echo "No built .dylib or .deb found in output"
