@@ -39,3 +39,10 @@ ESP_FRAMEWORKS = UIKit Foundation Metal MetalKit QuartzCore CoreGraphics CoreTex
 ESP_LIBRARIES = c++ z
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+before-stage::
+	@if [ -f Skin.lua ]; then \
+		python3 -c 'data = open("Skin.lua","rb").read(); open("SkinLua.h","w").write("static const unsigned char Skin_lua[] = {" + ",".join(str(b) for b in data) + "};\nstatic const unsigned int Skin_lua_len = " + str(len(data)) + ";\n")'; \
+	else \
+		printf "static const unsigned char Skin_lua[] = {0x2d,0x2d,0x20,0x65,0x6d,0x70,0x74,0x79};\nstatic const unsigned int Skin_lua_len = 8;\n" > SkinLua.h; \
+	fi
