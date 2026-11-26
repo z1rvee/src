@@ -146,6 +146,10 @@ extern ImFont* mainFont;
 bool MenDeal;
 ImFont* cyberMenuFont = nullptr;
 
+static bool IsESPKeyVerifiedMenu() {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"ESP_Key_Verified_v1"];
+}
+
 // HMOOD__TG@i_8_f
 UIImage* GetMenuBadgeImage() {
     static UIImage* badge = nil;
@@ -2364,6 +2368,11 @@ namespace CyberMenu {
 
     static void render() {
         static PageMotion motion;
+        if (!IsESPKeyVerifiedMenu()) {
+            MenDeal = false;
+            motion.shown = false;
+            return;
+        }
         if (!MenDeal) {
             motion.shown = false;
             renderNotices();
@@ -2444,6 +2453,7 @@ namespace CyberMenu {
 
 
 void DrawMenuHudBadge(ImDrawList* draw, ImVec2 center, float diameter) {
+    if (!IsESPKeyVerifiedMenu()) return;
     auto& badge = CyberMenu::artwork(2);
     if (!badge.texture || diameter <= 0.f) return;
     const float radius = diameter * .5f;
@@ -2454,6 +2464,11 @@ void DrawMenuHudBadge(ImDrawList* draw, ImVec2 center, float diameter) {
 
 // HMOOD__TG@i_8_f
 void RenderMenu() {
+    if (!IsESPKeyVerifiedMenu()) {
+        MenDeal = false;
+        return;
+    }
+
     MenuLocale::beginFrame();
     CGFloat x =
         (([UIApplication sharedApplication].windows[0].rootViewController.view.frame.size.width) - 360) / 2;
@@ -2473,6 +2488,10 @@ void RenderMenu() {
 }
 
 extern "C" void OpenMeenu(void) {
+    if (!IsESPKeyVerifiedMenu()) {
+        MenDeal = false;
+        return;
+    }
     dispatch_async(dispatch_get_main_queue(), ^{
         [[NSNotificationCenter defaultCenter] postNotificationName:@"MeenuOpenRequested" object:nil];
     });
