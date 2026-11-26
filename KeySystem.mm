@@ -5,12 +5,19 @@
 static NSString *const API_BASE_URL = @"https://newsrc.onrender.com";
 static NSString *const API_VERIFY_ENDPOINT = @"https://newsrc.onrender.com/api/verify";
 static NSTimeInterval const SYNC_INTERVAL_SECONDS = 10.0;
+static NSInteger const IDLE_TIMEOUT_SECONDS = 15;
 
 NSString *globalActiveKey = nil;
 static NSTimeInterval globalRemainingSeconds = -1;
 static BOOL globalIsLifetime = NO;
 static NSTimer *syncTimer = nil;
+static NSTimer *idleTimer = nil;
+static NSInteger idleSecondsLeft = IDLE_TIMEOUT_SECONDS;
 static BOOL isHandlingBanOrUpdate = NO;
+static BOOL isKeyAccepted = NO;
+
+// Oz hile menyu funksiyan varsa burada elaqe qura bilersen
+extern "C" void showHackMenu(void) __attribute__((weak));
 
 static NSString *getDeviceHWID(void) {
     NSString *uuid = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
@@ -51,6 +58,11 @@ static NSString *formatRemainingTimeText(void) {
     return [NSString stringWithFormat:@"%ldh %ldm %lds", (long)hours, (long)minutes, (long)seconds];
 }
 
+static void stopIdleTimer(void) {
+    [idleTimer invalidate];
+    idleTimer = nil;
+}
+
 static void showStatusBanner(NSString *message, UIColor *bgColor) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = getKeyWindow();
@@ -83,7 +95,6 @@ static void showStatusBanner(NSString *message, UIColor *bgColor) {
     });
 }
 
-// Açar dogru olanda ekranda 3 saniye qalan vaxti gosterir
 static void showRemainingTimeForThreeSeconds(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = getKeyWindow();
@@ -142,6 +153,7 @@ static void showFatalModalAndCrashAfterDelay(NSString *titleText, NSString *deta
         if (isHandlingBanOrUpdate) return;
         isHandlingBanOrUpdate = YES;
 
+        stopIdleTimer();
         [syncTimer invalidate];
         syncTimer = nil;
 
@@ -268,6 +280,21 @@ static void sendKeyRequest(NSString *inputKey,
     [task resume];
 }
 
+static void openHackMenuAfterKeyAccepted(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (isKeyAccepted) return;
+        isKeyAccepted = YES;
+        stopIdleTimer();
+
+        showRemainingTimeForThreeSeconds();
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"StartHack" object:nil];
+
+        if (showHackMenu) {
+            showHackMenu();
+        }
+    });
+}
+
 static void startLiveKeySync(NSString *activeKey) {
     dispatch_async(dispatch_get_main_queue(), ^{
         [syncTimer invalidate];
@@ -350,8 +377,7 @@ static void verifyKeyWithServer(NSString *inputKey, UIView *overlayView, BOOL is
             dispatch_async(dispatch_get_main_queue(), ^{
                 [overlayView removeFromSuperview];
                 showStatusBanner(message, [UIColor systemGreenColor]);
-                showRemainingTimeForThreeSeconds();
-                [[NSNotificationCenter defaultCenter] postNotificationName:@"StartHack" object:nil];
+                openHackMenuAfterKeyAccepted();
             });
         } else {
             if (!isAutoLogin) {
@@ -364,12 +390,43 @@ static void verifyKeyWithServer(NSString *inputKey, UIView *overlayView, BOOL is
 @interface KeyLoginHandler : NSObject
 @property (nonatomic, weak) UITextField *keyField;
 @property (nonatomic, weak) UIView *overlayView;
+@property (nonatomic, weak) UILabel *idleLabel;
 - (void)loginTapped;
 - (void)copyHWIDTapped;
+- (void)textDidChange;
+- (void)startIdleCountdown;
 @end
 
 @implementation KeyLoginHandler
+
+- (void)startIdleCountdown {
+    stopIdleTimer();
+    idleSecondsLeft = IDLE_TIMEOUT_SECONDS;
+    self.idleLabel.text = [NSString stringWithFormat:@"15 saniyə ərzində yazılmasa atılacaq (%lds)", (long)idleSecondsLeft];
+
+    idleTimer = [NSTimer scheduledTimerWithTimeInterval:1.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
+        if (isKeyAccepted || isHandlingBanOrUpdate) {
+            [timer invalidate];
+            return;
+        }
+        idleSecondsLeft -= 1;
+        if (idleSecondsLeft > 0) {
+            self.idleLabel.text = [NSString stringWithFormat:@"15 saniyə ərzində yazılmasa atılacaq (%lds)", (long)idleSecondsLeft];
+        } else {
+            [timer invalidate];
+            showFatalModalAndCrashAfterDelay(@"VAXT BİTDİ", @"15 saniyə ərzində heç nə yazılmadı", 1);
+        }
+    }];
+    [[NSRunLoop mainRunLoop] addTimer:idleTimer forMode:NSRunLoopCommonModes];
+}
+
+- (void)textDidChange {
+    // Istifadeci her nese yazanda 15 saniyelik geri sayim sifirlanir
+    [self startIdleCountdown];
+}
+
 - (void)loginTapped {
+    [self startIdleCountdown];
     NSString *keyText = [self.keyField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (keyText.length == 0) {
         showStatusBanner(@"Zəhmət olmasa açar daxil edin!", [UIColor systemOrangeColor]);
@@ -379,15 +436,22 @@ static void verifyKeyWithServer(NSString *inputKey, UIView *overlayView, BOOL is
 }
 
 - (void)copyHWIDTapped {
+    [self startIdleCountdown];
     [UIPasteboard generalPasteboard].string = getDeviceHWID();
     showStatusBanner(@"HWID kopyalandı!", [UIColor systemBlueColor]);
 }
+
 @end
 
 static KeyLoginHandler *loginHandler = nil;
 
 extern "C" void showKeyMenu(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        if (isKeyAccepted) {
+            openHackMenuAfterKeyAccepted();
+            return;
+        }
+
         UIWindow *window = getKeyWindow();
         if (!window) return;
 
@@ -397,7 +461,7 @@ extern "C" void showKeyMenu(void) {
         overlay.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.75];
         [window addSubview:overlay];
 
-        UIView *card = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 310, 230)];
+        UIView *card = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 310, 252)];
         card.center = overlay.center;
         card.backgroundColor = [UIColor colorWithRed:0.11 green:0.14 blue:0.20 alpha:1.0];
         card.layer.cornerRadius = 16;
@@ -405,14 +469,21 @@ extern "C" void showKeyMenu(void) {
         card.layer.borderColor = [UIColor colorWithRed:0.22 green:0.74 blue:0.97 alpha:0.5].CGColor;
         [overlay addSubview:card];
 
-        UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(15, 16, 280, 26)];
+        UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(15, 14, 280, 24)];
         title.text = @"LİSENZİYA GİRİŞİ (HWID)";
         title.textColor = [UIColor whiteColor];
         title.font = [UIFont boldSystemFontOfSize:17];
         title.textAlignment = NSTextAlignmentCenter;
         [card addSubview:title];
 
-        UITextField *textField = [[UITextField alloc] initWithFrame:CGRectMake(20, 58, 270, 42)];
+        UILabel *idleLbl = [[UILabel alloc] initWithFrame:CGRectMake(15, 38, 280, 16)];
+        idleLbl.text = @"15 saniyə ərzində yazılmasa atılacaq (15s)";
+        idleLbl.textColor = [UIColor colorWithRed:1.0 green:0.45 blue:0.48 alpha:1.0];
+        idleLbl.font = [UIFont boldSystemFontOfSize:10];
+        idleLbl.textAlignment = NSTextAlignmentCenter;
+        [card addSubview:idleLbl];
+
+        UITextField *textField = [[UITextField alloc] initWithFrame:CGRectMake(20, 62, 270, 42)];
         textField.backgroundColor = [UIColor colorWithRed:0.06 green:0.09 blue:0.14 alpha:1.0];
         textField.textColor = [UIColor whiteColor];
         textField.attributedPlaceholder = [[NSAttributedString alloc] initWithString:@"Açarınızı daxil edin..." attributes:@{NSForegroundColorAttributeName: [UIColor lightGrayColor]}];
@@ -425,9 +496,12 @@ extern "C" void showKeyMenu(void) {
         loginHandler = [[KeyLoginHandler alloc] init];
         loginHandler.keyField = textField;
         loginHandler.overlayView = overlay;
+        loginHandler.idleLabel = idleLbl;
+
+        [textField addTarget:loginHandler action:@selector(textDidChange) forControlEvents:UIControlEventEditingChanged];
 
         UIButton *loginBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        loginBtn.frame = CGRectMake(20, 114, 270, 42);
+        loginBtn.frame = CGRectMake(20, 116, 270, 42);
         loginBtn.backgroundColor = [UIColor colorWithRed:0.01 green:0.52 blue:0.78 alpha:1.0];
         [loginBtn setTitle:@"DAXİL OL" forState:UIControlStateNormal];
         [loginBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
@@ -445,6 +519,8 @@ extern "C" void showKeyMenu(void) {
         hwidBtn.layer.cornerRadius = 8;
         [hwidBtn addTarget:loginHandler action:@selector(copyHWIDTapped) forControlEvents:UIControlEventTouchUpInside];
         [card addSubview:hwidBtn];
+
+        [loginHandler startIdleCountdown];
 
         if (savedKey.length > 0) {
             verifyKeyWithServer(savedKey, overlay, YES);
