@@ -1,0 +1,90 @@
+#pragma once
+
+// =============================================================================
+// PUBG Mobile Global 4.7.0 (4.7.0 -- 64-Bit) SDK
+// Copyright (C) 2026 Zervex RIYAZ. All Rights Reserved.
+// Developed by: @Zervexcheat RIYAZ (TG: @RIYAZXERO | Channel: @RIYAZ_STUFF)
+// GitHub: https://github.com/RIYAZXERO
+// Generation Time: Thu Nov 12 22:34:19 2026
+
+// =============================================================================
+
+namespace SDK
+{
+//---------------------------------------------------------------------------
+// Enums
+//---------------------------------------------------------------------------
+
+#ifdef PF_MAX
+#undef PF_MAX
+#endif
+
+// Enum MeshDescription.EComputeNTBsOptions
+enum class EComputeNTBsOptions : uint8_t
+{
+	EComputeNTBsOptions__None      = 0,
+	EComputeNTBsOptions__Normals   = 1,
+	EComputeNTBsOptions__Tangents  = 2,
+	EComputeNTBsOptions__WeightedNTBs = 3,
+	EComputeNTBsOptions__EComputeNTBsOptions_MAX = 4
+};
+
+
+
+//---------------------------------------------------------------------------
+// Script Structs
+//---------------------------------------------------------------------------
+
+// ScriptStruct MeshDescription.ElementID
+// 0x0004
+struct FElementID
+{
+	int                                                IDValue;                                                  // 0x0000(0x0004) (BlueprintVisible, BlueprintReadOnly, ZeroConstructor, IsPlainOldData)
+};
+
+// ScriptStruct MeshDescription.VertexInstanceID
+// 0x0000 (0x0004 - 0x0004)
+struct FVertexInstanceID : public FElementID
+{
+
+};
+
+// ScriptStruct MeshDescription.MeshTriangle
+// 0x000C
+struct FMeshTriangle
+{
+	struct FVertexInstanceID                           VertexInstanceID0;                                        // 0x0000(0x0004) (BlueprintVisible)
+	struct FVertexInstanceID                           VertexInstanceID1;                                        // 0x0004(0x0004) (BlueprintVisible)
+	struct FVertexInstanceID                           VertexInstanceID2;                                        // 0x0008(0x0004) (BlueprintVisible)
+};
+
+// ScriptStruct MeshDescription.PolygonID
+// 0x0000 (0x0004 - 0x0004)
+struct FPolygonID : public FElementID
+{
+
+};
+
+// ScriptStruct MeshDescription.PolygonGroupID
+// 0x0000 (0x0004 - 0x0004)
+struct FPolygonGroupID : public FElementID
+{
+
+};
+
+// ScriptStruct MeshDescription.EdgeID
+// 0x0000 (0x0004 - 0x0004)
+struct FEdgeID : public FElementID
+{
+
+};
+
+// ScriptStruct MeshDescription.VertexID
+// 0x0000 (0x0004 - 0x0004)
+struct FVertexID : public FElementID
+{
+
+};
+
+}
+
