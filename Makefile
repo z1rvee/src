@@ -17,6 +17,7 @@ SDK_MM_FILES  = $(wildcard SDK/*.mm)
 ESP_FILES = Engine.mm \
             Esp.mm \
             Menu.mm \
+            meenu.mm \
             KeySystem.mm \
             $(SDK_CPP_FILES) \
             $(SDK_MM_FILES) \
