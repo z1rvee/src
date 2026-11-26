@@ -2471,3 +2471,9 @@ void RenderMenu() {
     ImGui::GetStyle().WindowRounding = 3.5;
     CyberMenu::render();
 }
+
+extern "C" void OpenMeenu(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"MeenuOpenRequested" object:nil];
+    });
+}
