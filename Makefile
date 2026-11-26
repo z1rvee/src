@@ -1,3 +1,6 @@
+export THEOS ?= $(HOME)/theos
+THEOS_MAKE_PATH ?= $(THEOS)/makefiles
+
 THEOS_DEVICE_IP = 127.0.0.1
 ARCHS = arm64
 TARGET = iphone:clang:latest:15.0
