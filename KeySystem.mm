@@ -4,6 +4,8 @@
 
 static NSString *const API_BASE_URL = @"https://newsrc.onrender.com";
 static NSString *const API_VERIFY_ENDPOINT = @"https://newsrc.onrender.com/api/verify";
+static NSString *const kESPKeyVerifiedDefaultsKey = @"ESP_Key_Verified_v1";
+static NSString *const kESPKeyAuthNotification = @"KeyAuthSuccessNotification";
 static NSTimeInterval const SYNC_INTERVAL_SECONDS = 10.0;
 static NSInteger const IDLE_TIMEOUT_SECONDS = 15;
 
@@ -16,8 +18,19 @@ static NSInteger idleSecondsLeft = IDLE_TIMEOUT_SECONDS;
 static BOOL isHandlingBanOrUpdate = NO;
 static BOOL isKeyAccepted = NO;
 
-// Oz hile menyu funksiyan varsa burada elaqe qura bilersen
 extern "C" void showHackMenu(void) __attribute__((weak));
+extern "C" void MeenuOverlayOpen(void) __attribute__((weak));
+
+static void setESPKeyVerifiedState(BOOL verified) {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setBool:verified forKey:kESPKeyVerifiedDefaultsKey];
+    [defaults synchronize];
+    if (verified) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:kESPKeyAuthNotification object:nil];
+        });
+    }
+}
 
 static NSString *getDeviceHWID(void) {
     NSString *uuid = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
@@ -31,6 +44,9 @@ static UIWindow *getKeyWindow(void) {
                 if (window.isKeyWindow) {
                     return window;
                 }
+            }
+            if (scene.windows.firstObject) {
+                return scene.windows.firstObject;
             }
         }
     }
@@ -152,6 +168,7 @@ static void showFatalModalAndCrashAfterDelay(NSString *titleText, NSString *deta
     dispatch_async(dispatch_get_main_queue(), ^{
         if (isHandlingBanOrUpdate) return;
         isHandlingBanOrUpdate = YES;
+        setESPKeyVerifiedState(NO);
 
         stopIdleTimer();
         [syncTimer invalidate];
@@ -285,12 +302,16 @@ static void openHackMenuAfterKeyAccepted(void) {
         if (isKeyAccepted) return;
         isKeyAccepted = YES;
         stopIdleTimer();
+        setESPKeyVerifiedState(YES);
 
         showRemainingTimeForThreeSeconds();
         [[NSNotificationCenter defaultCenter] postNotificationName:@"StartHack" object:nil];
 
         if (showHackMenu) {
             showHackMenu();
+        }
+        if (MeenuOverlayOpen) {
+            MeenuOverlayOpen();
         }
     });
 }
@@ -421,7 +442,6 @@ static void verifyKeyWithServer(NSString *inputKey, UIView *overlayView, BOOL is
 }
 
 - (void)textDidChange {
-    // Istifadeci her nese yazanda 15 saniyelik geri sayim sifirlanir
     [self startIdleCountdown];
 }
 
@@ -447,6 +467,8 @@ static KeyLoginHandler *loginHandler = nil;
 
 extern "C" void showKeyMenu(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        setESPKeyVerifiedState(NO);
+
         if (isKeyAccepted) {
             openHackMenuAfterKeyAccepted();
             return;
