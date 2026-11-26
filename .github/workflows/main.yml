@@ -1,56 +1,111 @@
-name: Build ESP dylib
+name: Build iOS Tweak (ESP)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-latest
-    env:
-      THEOS: /Users/runner/theos
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Theos
         run: |
           set -e
-          git clone --recursive https://github.com/theos/theos.git "$THEOS"
-          mkdir -p "$THEOS/sdks"
+          export THEOS="$HOME/theos"
+          if [ ! -d "$THEOS" ]; then
+            git clone --recursive https://github.com/theos/theos.git "$THEOS"
+          fi
+          mkdir -p "$THEOS/bin"
+          if ! command -v ldid >/dev/null 2>&1; then
+            curl -sSL https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_macosx_arm64 -o "$THEOS/bin/ldid" 2>/dev/null || true
+            chmod +x "$THEOS/bin/ldid" 2>/dev/null || true
+          fi
 
-          SDK_URL="https://github.com/theos/sdks/archive/refs/heads/master.zip"
-          curl -fSL --retry 3 --retry-delay 2 "$SDK_URL" -o /tmp/sdks.zip
-          mkdir -p /tmp/sdks_extracted
-          ditto -x -k /tmp/sdks.zip /tmp/sdks_extracted
-          cp -R /tmp/sdks_extracted/sdks-master/*.sdk "$THEOS/sdks/" || true
-          ls -la "$THEOS/sdks"
-          rm -rf /tmp/sdks.zip /tmp/sdks_extracted
-
-      - name: Install ldid
-        run: |
-          brew install ldid
-
-      - name: Build ESP dylib
-        env:
-          THEOS: /Users/runner/theos
+      - name: Write Makefile
         run: |
           set -e
-          mkdir -p output
+          cat << 'EOF' > Makefile
+          export THEOS ?= $(HOME)/theos
+          THEOS_MAKE_PATH ?= $(THEOS)/makefiles
+
+          THEOS_DEVICE_IP = 127.0.0.1
+          ARCHS = arm64
+          TARGET = iphone:clang:latest:15.0
+
+          INSTALL_TARGET_PROCESSES = ShadowTrackerExtra
+
+          include $(THEOS)/makefiles/common.mk
+
+          TWEAK_NAME = ESP
+
+          SDK_CPP_FILES = $(wildcard SDK/*.cpp SDK/*/*.cpp)
+          SDK_MM_FILES  = $(wildcard SDK/*.mm SDK/*/*.mm)
+
+          ESP_FILES = Engine.mm \
+                      Esp.mm \
+                      Menu.mm \
+                      $(SDK_CPP_FILES) \
+                      $(SDK_MM_FILES) \
+                      ESP/HeeeNoScreenShotView.m \
+                      ESP/HideFunsion.m \
+                      ESP/PubgLoad.mm \
+                      ESP/ini_rw.cpp \
+                      ESP/imgui/Tools.cpp \
+                      ESP/imgui/imgui.cpp \
+                      ESP/imgui/imgui_draw.cpp \
+                      ESP/imgui/imgui_impl_metal.mm \
+                      ESP/imgui/imgui_tables.cpp \
+                      ESP/imgui/imgui_widgets.cpp
+
+          ESP_CFLAGS = -fobjc-arc -w -I. -IESP -IESP/imgui -ISDK
+          ESP_CCFLAGS = -std=c++17 -fno-rtti -fno-exceptions -w -I. -IESP -IESP/imgui -ISDK
+
+          ESP_FRAMEWORKS = UIKit Foundation Metal MetalKit QuartzCore CoreGraphics CoreText Security AVFoundation
+          ESP_LIBRARIES = c++ z
+
+          include $(THEOS_MAKE_PATH)/tweak.mk
+          EOF
+
+      - name: Build tweak with Theos
+        run: |
+          set -e
+          export THEOS="$HOME/theos"
+          export PATH="$THEOS/bin:$PATH"
           make clean || true
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless || make FINALPACKAGE=1
-          DYLIB_PATH=$(find .theos/obj -name "ESP.dylib" | head -n 1)
-          if [ -z "$DYLIB_PATH" ]; then
-            echo "ESP.dylib tapılmadı!"
+          make package FINALPACKAGE=1
+
+      - name: Create clean release archive
+        run: |
+          set -e
+          rm -rf release_out
+          mkdir -p release_out
+
+          find . -name "ESP.dylib" -exec cp -f {} release_out/ \;
+          find . -name "*.deb" -exec cp -f {} release_out/ \;
+
+          if [ -z "$(ls -A release_out)" ]; then
+            echo "No built .dylib or .deb found in output"
             exit 1
           fi
-          ldid -S "$DYLIB_PATH"
-          cp "$DYLIB_PATH" output/ESP.dylib
 
-      - name: Upload ESP dylib artifact
+          rm -f ESP_Build_Output.zip
+          cd release_out
+          zip -r -9 ../ESP_Build_Output.zip ./*
+          cd ..
+          unzip -t ESP_Build_Output.zip
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ESP-dylib
-          path: output/ESP.dylib
+          name: ESP-iOS-Build
+          path: ESP_Build_Output.zip
+          if-no-files-error: true
