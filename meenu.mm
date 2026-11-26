@@ -156,7 +156,7 @@ static MeenuOverlayController *gMeenuOverlay = nil;
 
 @end
 
-extern "C" void OpenMeenu(void) {
+extern "C" void MeenuOverlayOpen(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!gMeenuOverlay) {
             gMeenuOverlay = [[MeenuOverlayController alloc] init];
