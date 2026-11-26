@@ -4,7 +4,15 @@
 
 extern bool MenDeal;
 
+static BOOL IsESPKeyVerified(void) {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"ESP_Key_Verified_v1"];
+}
+
 static NSString *RunEmbeddedSkinLua(void) {
+    if (!IsESPKeyVerified()) {
+        return @"Əvvəlcə key təsdiqlənməlidir";
+    }
+
     NSData *raw = [NSData dataWithBytes:Skin_lua length:Skin_lua_len];
     NSString *script = [[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding];
     if (!script || script.length == 0 || [script isEqualToString:@"-- empty"]) {
@@ -30,6 +38,7 @@ static NSString *RunEmbeddedSkinLua(void) {
 - (void)openMeenuWindow;
 - (void)closeMeenuWindow;
 - (void)runSkinLuaAction;
+- (void)syncWithKeyAuth;
 @end
 
 static MeenuOverlayController *gMeenuOverlay = nil;
@@ -39,6 +48,10 @@ static MeenuOverlayController *gMeenuOverlay = nil;
 - (instancetype)init {
     self = [super init];
     if (self) {
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(onKeyAuthenticated)
+                                                     name:@"KeyAuthSuccessNotification"
+                                                   object:nil];
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(openMeenuWindow)
                                                      name:@"MeenuOpenRequested"
@@ -59,7 +72,29 @@ static MeenuOverlayController *gMeenuOverlay = nil;
     return [UIApplication sharedApplication].windows.firstObject;
 }
 
+- (void)syncWithKeyAuth {
+    if (!IsESPKeyVerified()) {
+        MenDeal = false;
+        self.blackCircleButton.hidden = YES;
+        [self.meenuPopup removeFromSuperview];
+        return;
+    }
+
+    [self attachCircle];
+    self.blackCircleButton.hidden = NO;
+}
+
+- (void)onKeyAuthenticated {
+    [self syncWithKeyAuth];
+    [self openMeenuWindow];
+}
+
 - (void)handleBlackCircleTap {
+    if (!IsESPKeyVerified()) {
+        MenDeal = false;
+        [self.meenuPopup removeFromSuperview];
+        return;
+    }
     MenDeal = !MenDeal;
 }
 
@@ -69,6 +104,12 @@ static MeenuOverlayController *gMeenuOverlay = nil;
 }
 
 - (void)openMeenuWindow {
+    if (!IsESPKeyVerified()) {
+        MenDeal = false;
+        [self.meenuPopup removeFromSuperview];
+        return;
+    }
+
     UIWindow *win = [self activeWindow];
     if (!win) return;
 
@@ -118,7 +159,7 @@ static MeenuOverlayController *gMeenuOverlay = nil;
         [win addSubview:self.meenuPopup];
     }
     [win bringSubviewToFront:self.meenuPopup];
-    if (self.blackCircleButton) {
+    if (self.blackCircleButton && !self.blackCircleButton.hidden) {
         [win bringSubviewToFront:self.blackCircleButton];
     }
 }
@@ -128,6 +169,11 @@ static MeenuOverlayController *gMeenuOverlay = nil;
 }
 
 - (void)attachCircle {
+    if (!IsESPKeyVerified()) {
+        self.blackCircleButton.hidden = YES;
+        return;
+    }
+
     UIWindow *win = [self activeWindow];
     if (!win) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -148,6 +194,7 @@ static MeenuOverlayController *gMeenuOverlay = nil;
         self.blackCircleButton = btn;
     }
 
+    self.blackCircleButton.hidden = NO;
     if (!self.blackCircleButton.superview) {
         [win addSubview:self.blackCircleButton];
     }
@@ -161,6 +208,7 @@ extern "C" void MeenuOverlayOpen(void) {
         if (!gMeenuOverlay) {
             gMeenuOverlay = [[MeenuOverlayController alloc] init];
         }
+        [gMeenuOverlay syncWithKeyAuth];
         [gMeenuOverlay openMeenuWindow];
     });
 }
@@ -171,6 +219,9 @@ static void initMeenuOverlay(void) {
         if (!gMeenuOverlay) {
             gMeenuOverlay = [[MeenuOverlayController alloc] init];
         }
-        [gMeenuOverlay attachCircle];
+        [gMeenuOverlay syncWithKeyAuth];
+        if (IsESPKeyVerified()) {
+            [gMeenuOverlay openMeenuWindow];
+        }
     });
 }
