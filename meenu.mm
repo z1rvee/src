@@ -1,133 +1,208 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+#include "lua.hpp"
+#include "SkinLua.h"
 
-@interface ImGuiDrawView : UIViewController
-+ (void)showChange:(BOOL)o;
-+ (BOOL)isMenuShowing;
-@end
+extern bool MenDeal;
+static lua_State *gSkinLuaState = nullptr;
 
-extern bool menu_open;
+static BOOL ExecuteEmbeddedSkinLua(NSString **errorOut) {
+    if (gSkinLuaState) {
+        lua_close(gSkinLuaState);
+        gSkinLuaState = nullptr;
+    }
 
-@interface MeenuController : NSObject
-@property (nonatomic, strong) UIButton *circleButton;
-@property (nonatomic, strong) UIView *meenuWindow;
-- (void)onCircleTap;
-- (void)openMeenuTapped;
-- (void)closeMeenuTapped;
-@end
+    gSkinLuaState = luaL_newstate();
+    if (!gSkinLuaState) {
+        if (errorOut) *errorOut = @"Lua state yaradılmadı";
+        return NO;
+    }
 
-static MeenuController *gMeenu = nil;
+    luaL_openlibs(gSkinLuaState);
 
-@implementation MeenuController
+    int status = luaL_loadbuffer(gSkinLuaState,
+                                 (const char *)Skin_lua,
+                                 (size_t)Skin_lua_len,
+                                 "Skin.lua");
+    if (status != LUA_OK) {
+        if (errorOut) {
+            const char *err = lua_tostring(gSkinLuaState, -1);
+            *errorOut = err ? [NSString stringWithUTF8String:err] : @"Load xətası";
+        }
+        lua_close(gSkinLuaState);
+        gSkinLuaState = nullptr;
+        return NO;
+    }
 
-- (void)onCircleTap {
-    BOOL nextState = !menu_open;
-    menu_open = nextState;
-    [ImGuiDrawView showChange:nextState];
+    if (lua_pcall(gSkinLuaState, 0, LUA_MULTRET, 0) != LUA_OK) {
+        if (errorOut) {
+            const char *err = lua_tostring(gSkinLuaState, -1);
+            *errorOut = err ? [NSString stringWithUTF8String:err] : @"İcra xətası";
+        }
+        lua_close(gSkinLuaState);
+        gSkinLuaState = nullptr;
+        return NO;
+    }
+
+    return YES;
 }
 
-- (void)openMeenuTapped {
-    UIWindow *win = nil;
+@interface MeenuOverlayController : NSObject
+@property (nonatomic, strong) UIButton *blackCircleButton;
+@property (nonatomic, strong) UIView *meenuPopup;
+@property (nonatomic, strong) UILabel *statusLabel;
+- (void)handleBlackCircleTap;
+- (void)openMeenuWindow;
+- (void)closeMeenuWindow;
+- (void)runSkinLuaAction;
+@end
+
+static MeenuOverlayController *gMeenuOverlay = nil;
+
+@implementation MeenuOverlayController
+
+- (instancetype)init {
+    self = [super init];
+    if (self) {
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(openMeenuWindow)
+                                                     name:@"MeenuOpenRequested"
+                                                   object:nil];
+    }
+    return self;
+}
+
+- (UIWindow *)activeWindow {
     for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if (scene.activationState == UISceneActivationStateForegroundActive) {
             for (UIWindow *w in scene.windows) {
-                if (w.isKeyWindow) { win = w; break; }
+                if (w.isKeyWindow) return w;
             }
+            if (scene.windows.firstObject) return scene.windows.firstObject;
         }
     }
-    if (!win) win = [UIApplication sharedApplication].windows.firstObject;
-    if (!win) return;
+    return [UIApplication sharedApplication].windows.firstObject;
+}
 
-    if (!self.meenuWindow) {
-        UIView *box = [[UIView alloc] initWithFrame:CGRectMake(30, 110, 220, 110)];
-        box.backgroundColor = [UIColor colorWithRed:0.06 green:0.06 blue:0.07 alpha:0.95];
-        box.layer.cornerRadius = 12;
-        box.layer.borderWidth = 0.0;
+- (void)handleBlackCircleTap {
+    MenDeal = !MenDeal;
+}
 
-        UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(14, 14, 150, 24)];
-        lbl.text = @"MEENU";
-        lbl.textColor = [UIColor whiteColor];
-        lbl.font = [UIFont boldSystemFontOfSize:14];
-        [box addSubview:lbl];
-
-        UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
-        closeBtn.frame = CGRectMake(164, 54, 42, 34);
-        [closeBtn setTitle:@"X" forState:UIControlStateNormal];
-        [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-        [closeBtn addTarget:self action:@selector(closeMeenuTapped) forControlEvents:UIControlEventTouchUpInside];
-        [box addSubview:closeBtn];
-
-        self.meenuWindow = box;
-    }
-
-    if (!self.meenuWindow.superview) {
-        [win addSubview:self.meenuWindow];
-    }
-    [win bringSubviewToFront:self.meenuWindow];
-    if (self.circleButton) {
-        [win bringSubviewToFront:self.circleButton];
+- (void)runSkinLuaAction {
+    NSString *errorMsg = nil;
+    BOOL ok = ExecuteEmbeddedSkinLua(&errorMsg);
+    if (ok) {
+        self.statusLabel.text = @"Skin.lua aktivdir";
+        self.statusLabel.textColor = [UIColor colorWithRed:0.85 green:0.85 blue:0.85 alpha:1.0];
+    } else {
+        self.statusLabel.text = errorMsg ?: @"Xəta baş verdi";
+        self.statusLabel.textColor = [UIColor colorWithRed:0.65 green:0.65 blue:0.65 alpha:1.0];
     }
 }
 
-- (void)closeMeenuTapped {
-    [self.meenuWindow removeFromSuperview];
+- (void)openMeenuWindow {
+    UIWindow *win = [self activeWindow];
+    if (!win) return;
+
+    if (!self.meenuPopup) {
+        UIView *box = [[UIView alloc] initWithFrame:CGRectMake(32, 114, 240, 134)];
+        box.backgroundColor = [UIColor colorWithRed:0.04 green:0.04 blue:0.04 alpha:0.96];
+        box.layer.cornerRadius = 10;
+        box.layer.borderWidth = 1.0;
+        box.layer.borderColor = [UIColor colorWithWhite:0.18 alpha:1.0].CGColor;
+
+        UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(14, 12, 160, 20)];
+        title.text = @"MEENU";
+        title.textColor = [UIColor whiteColor];
+        title.font = [UIFont boldSystemFontOfSize:13];
+        [box addSubview:title];
+
+        UIButton *closeBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        closeBtn.frame = CGRectMake(196, 8, 34, 28);
+        [closeBtn setTitle:@"X" forState:UIControlStateNormal];
+        [closeBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        closeBtn.titleLabel.font = [UIFont boldSystemFontOfSize:13];
+        [closeBtn addTarget:self action:@selector(closeMeenuWindow) forControlEvents:UIControlEventTouchUpInside];
+        [box addSubview:closeBtn];
+
+        UIButton *runBtn = [UIButton buttonWithType:UIButtonTypeSystem];
+        runBtn.frame = CGRectMake(14, 44, 212, 36);
+        runBtn.backgroundColor = [UIColor colorWithWhite:0.12 alpha:1.0];
+        runBtn.layer.cornerRadius = 6;
+        [runBtn setTitle:@"RUN SKIN.LUA" forState:UIControlStateNormal];
+        [runBtn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        runBtn.titleLabel.font = [UIFont boldSystemFontOfSize:12];
+        [runBtn addTarget:self action:@selector(runSkinLuaAction) forControlEvents:UIControlEventTouchUpInside];
+        [box addSubview:runBtn];
+
+        UILabel *status = [[UILabel alloc] initWithFrame:CGRectMake(14, 90, 212, 30)];
+        status.text = @"Hazırdır";
+        status.textColor = [UIColor colorWithWhite:0.55 alpha:1.0];
+        status.font = [UIFont systemFontOfSize:11];
+        status.numberOfLines = 2;
+        [box addSubview:status];
+        self.statusLabel = status;
+
+        self.meenuPopup = box;
+    }
+
+    if (!self.meenuPopup.superview) {
+        [win addSubview:self.meenuPopup];
+    }
+    [win bringSubviewToFront:self.meenuPopup];
+    if (self.blackCircleButton) {
+        [win bringSubviewToFront:self.blackCircleButton];
+    }
+}
+
+- (void)closeMeenuWindow {
+    [self.meenuPopup removeFromSuperview];
+}
+
+- (void)attachCircle {
+    UIWindow *win = [self activeWindow];
+    if (!win) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self attachCircle];
+        });
+        return;
+    }
+
+    if (!self.blackCircleButton) {
+        CGFloat size = 48.0;
+        UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
+        btn.frame = CGRectMake(24.0, 56.0, size, size);
+        btn.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.70];
+        btn.layer.cornerRadius = size * 0.5;
+        btn.layer.borderWidth = 0.0;
+        btn.clipsToBounds = YES;
+        [btn addTarget:self action:@selector(handleBlackCircleTap) forControlEvents:UIControlEventTouchUpInside];
+        self.blackCircleButton = btn;
+    }
+
+    if (!self.blackCircleButton.superview) {
+        [win addSubview:self.blackCircleButton];
+    }
+    [win bringSubviewToFront:self.blackCircleButton];
 }
 
 @end
 
-extern "C" void showMeenu(void) {
+extern "C" void OpenMeenu(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (!gMeenu) {
-            gMeenu = [[MeenuController alloc] init];
+        if (!gMeenuOverlay) {
+            gMeenuOverlay = [[MeenuOverlayController alloc] init];
         }
-        [gMeenu openMeenuTapped];
-    });
-}
-
-static void addBlackCircle(void) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *win = nil;
-        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
-            if (scene.activationState == UISceneActivationStateForegroundActive) {
-                for (UIWindow *w in scene.windows) {
-                    if (w.isKeyWindow) { win = w; break; }
-                }
-            }
-        }
-        if (!win) win = [UIApplication sharedApplication].windows.firstObject;
-        if (!win) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                addBlackCircle();
-            });
-            return;
-        }
-
-        if (!gMeenu) {
-            gMeenu = [[MeenuController alloc] init];
-        }
-
-        if (!gMeenu.circleButton) {
-            CGFloat diameter = 48.0;
-            UIButton *btn = [UIButton buttonWithType:UIButtonTypeCustom];
-            btn.frame = CGRectMake(24.0, 56.0, diameter, diameter);
-            btn.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.70];
-            btn.layer.cornerRadius = diameter * 0.5;
-            btn.layer.borderWidth = 0.0;
-            btn.clipsToBounds = YES;
-            [btn addTarget:gMeenu action:@selector(onCircleTap) forControlEvents:UIControlEventTouchUpInside];
-            gMeenu.circleButton = btn;
-        }
-
-        if (!gMeenu.circleButton.superview) {
-            [win addSubview:gMeenu.circleButton];
-        }
-        [win bringSubviewToFront:gMeenu.circleButton];
+        [gMeenuOverlay openMeenuWindow];
     });
 }
 
 __attribute__((constructor))
-static void initMeenu(void) {
+static void initMeenuOverlay(void) {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        addBlackCircle();
+        if (!gMeenuOverlay) {
+            gMeenuOverlay = [[MeenuOverlayController alloc] init];
+        }
+        [gMeenuOverlay attachCircle];
     });
 }
