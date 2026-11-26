@@ -1,50 +1,25 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
-#include "lua.hpp"
 #include "SkinLua.h"
 
 extern bool MenDeal;
-static lua_State *gSkinLuaState = nullptr;
 
-static BOOL ExecuteEmbeddedSkinLua(NSString **errorOut) {
-    if (gSkinLuaState) {
-        lua_close(gSkinLuaState);
-        gSkinLuaState = nullptr;
+static NSString *RunEmbeddedSkinLua(void) {
+    NSData *raw = [NSData dataWithBytes:Skin_lua length:Skin_lua_len];
+    NSString *script = [[NSString alloc] initWithData:raw encoding:NSUTF8StringEncoding];
+    if (!script || script.length == 0 || [script isEqualToString:@"-- empty"]) {
+        return @"Skin.lua boşdur";
     }
 
-    gSkinLuaState = luaL_newstate();
-    if (!gSkinLuaState) {
-        if (errorOut) *errorOut = @"Lua state yaradılmadı";
-        return NO;
+    NSString *docsDir = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *outPath = [docsDir stringByAppendingPathComponent:@"Skin_loaded.lua"];
+    NSError *err = nil;
+    BOOL saved = [script writeToFile:outPath atomically:YES encoding:NSUTF8StringEncoding error:&err];
+    if (!saved) {
+        return err.localizedDescription ?: @"Yazma xətası";
     }
 
-    luaL_openlibs(gSkinLuaState);
-
-    int status = luaL_loadbuffer(gSkinLuaState,
-                                 (const char *)Skin_lua,
-                                 (size_t)Skin_lua_len,
-                                 "Skin.lua");
-    if (status != LUA_OK) {
-        if (errorOut) {
-            const char *err = lua_tostring(gSkinLuaState, -1);
-            *errorOut = err ? [NSString stringWithUTF8String:err] : @"Load xətası";
-        }
-        lua_close(gSkinLuaState);
-        gSkinLuaState = nullptr;
-        return NO;
-    }
-
-    if (lua_pcall(gSkinLuaState, 0, LUA_MULTRET, 0) != LUA_OK) {
-        if (errorOut) {
-            const char *err = lua_tostring(gSkinLuaState, -1);
-            *errorOut = err ? [NSString stringWithUTF8String:err] : @"İcra xətası";
-        }
-        lua_close(gSkinLuaState);
-        gSkinLuaState = nullptr;
-        return NO;
-    }
-
-    return YES;
+    return [NSString stringWithFormat:@"Skin.lua hazırdır (%lu bayt)", (unsigned long)raw.length];
 }
 
 @interface MeenuOverlayController : NSObject
@@ -89,15 +64,8 @@ static MeenuOverlayController *gMeenuOverlay = nil;
 }
 
 - (void)runSkinLuaAction {
-    NSString *errorMsg = nil;
-    BOOL ok = ExecuteEmbeddedSkinLua(&errorMsg);
-    if (ok) {
-        self.statusLabel.text = @"Skin.lua aktivdir";
-        self.statusLabel.textColor = [UIColor colorWithRed:0.85 green:0.85 blue:0.85 alpha:1.0];
-    } else {
-        self.statusLabel.text = errorMsg ?: @"Xəta baş verdi";
-        self.statusLabel.textColor = [UIColor colorWithRed:0.65 green:0.65 blue:0.65 alpha:1.0];
-    }
+    self.statusLabel.text = RunEmbeddedSkinLua();
+    self.statusLabel.textColor = [UIColor colorWithRed:0.85 green:0.85 blue:0.85 alpha:1.0];
 }
 
 - (void)openMeenuWindow {
