@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      THEOS: /Users/runner/theos
 
     steps:
       - name: Checkout repository
@@ -16,15 +18,15 @@ jobs:
       - name: Setup Theos
         run: |
           set -e
-          git clone --recursive https://github.com/theos/theos.git $HOME/theos
-          mkdir -p $HOME/theos/sdks
+          git clone --recursive https://github.com/theos/theos.git "$THEOS"
+          mkdir -p "$THEOS/sdks"
 
           SDK_URL="https://github.com/theos/sdks/archive/refs/heads/master.zip"
           curl -fSL --retry 3 --retry-delay 2 "$SDK_URL" -o /tmp/sdks.zip
           mkdir -p /tmp/sdks_extracted
           ditto -x -k /tmp/sdks.zip /tmp/sdks_extracted
-          cp -R /tmp/sdks_extracted/sdks-master/*.sdk "$HOME/theos/sdks/" || true
-          ls -la "$HOME/theos/sdks"
+          cp -R /tmp/sdks_extracted/sdks-master/*.sdk "$THEOS/sdks/" || true
+          ls -la "$THEOS/sdks"
           rm -rf /tmp/sdks.zip /tmp/sdks_extracted
 
       - name: Install ldid
@@ -33,7 +35,7 @@ jobs:
 
       - name: Build ESP dylib
         env:
-          THEOS: ${{ runner.home }}/theos
+          THEOS: /Users/runner/theos
         run: |
           set -e
           mkdir -p output
