@@ -267,33 +267,83 @@ body{
 .blank{padding:42px 16px;text-align:center;color:var(--muted);font-size:12px;font-weight:700}
 .view{display:none}.view.active{display:block}
 
-/* Modals & Forms */
+/* Modals & Clean Action Sheet */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.84);z-index:20;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-bg.open{display:flex}
-.modal{width:min(540px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;max-height:90vh;overflow-y:auto}
-.modal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.modal-top h2{font-size:16px;margin:0;font-weight:800}
-.x{border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer}
-.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.field{display:flex;flex-direction:column;gap:6px}
+.modal{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-height:90vh;overflow-y:auto}
+.modal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.modal-top h2{font-size:15px;margin:0;font-weight:800}
+.x{border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.field{display:flex;flex-direction:column;gap:5px}
 .field.full{grid-column:1/-1}
 .field label{font-size:11px;color:var(--muted);font-weight:700}
 .field input,.field select,.field textarea{
   background:var(--bg);
   border:1px solid var(--line);
   color:#fff;
-  border-radius:7px;
-  padding:10px;
+  border-radius:8px;
+  padding:9px 10px;
   font-family:inherit;
   font-size:12px;
   font-weight:700;
 }
+
+.clean-meta{
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+  margin-bottom:12px;
+  font-size:11px;
+  color:var(--muted);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.clean-meta strong{color:#fff;font-family:'JetBrains Mono',monospace;font-size:11px}
+.clean-list{display:flex;flex-direction:column;gap:8px}
+.clean-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--panel2);
+  border:1px solid var(--line);
+  color:#fff;
+  border-radius:9px;
+  padding:10px 12px;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:.15s;
+}
+.clean-btn:hover{border-color:#3d3d4d;background:#1f1f29}
+.clean-btn.danger{border-color:var(--red-border);color:var(--red);background:var(--red-soft)}
+.clean-btn.danger:hover{background:rgba(230,57,70,.24)}
+.clean-row{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center}
+.info-btn{
+  width:36px;
+  height:36px;
+  border-radius:9px;
+  border:1px solid var(--line);
+  background:var(--bg);
+  color:#fff;
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  transition:.15s;
+}
+.info-btn:hover{border-color:var(--red-border);color:var(--red)}
+
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap}
 .secondary{
   background:var(--panel2);
   color:#fff;
   border:1px solid var(--line);
-  border-radius:7px;
+  border-radius:8px;
   padding:8px 12px;
   font-family:inherit;
   font-size:11px;
@@ -303,9 +353,7 @@ body{
 }
 .secondary:hover{border-color:#3b3b49;background:#20202a}
 .secondary.danger{border-color:var(--red-border);color:var(--red);background:var(--red-soft)}
-.secondary.danger:hover{background:rgba(230,57,70,.22)}
-.section-label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin:14px 0 6px;font-weight:800}
-.footnote{color:var(--muted);font-size:11px;margin-top:8px;font-weight:600}
+.footnote{color:var(--muted);font-size:11px;margin-top:8px;font-weight:600;line-height:1.45}
 .toast{
   position:fixed;right:18px;bottom:18px;
   background:#fff;color:#070709;
@@ -426,10 +474,10 @@ input:checked + .slider:before{transform:translateX(22px)}
         </div>
 
         <div class="cards">
-          <div class="metric"><div class="label" id="mLblTotal">Total Keys</div><strong id="mTotal">0</strong></div>
-          <div class="metric"><div class="label" id="mLblActive">Active</div><strong id="mActive">0</strong></div>
-          <div class="metric"><div class="label" id="mLblTester">Tester Keys</div><strong id="mService">0</strong></div>
-          <div class="metric accent"><div class="label" id="mLblBanned">Banned Keys</div><strong id="mBanned">0</strong></div>
+          <div class="metric"><div class="label">Total Keys</div><strong id="mTotal">0</strong></div>
+          <div class="metric"><div class="label">Active</div><strong id="mActive">0</strong></div>
+          <div class="metric"><div class="label">Tester Keys</div><strong id="mService">0</strong></div>
+          <div class="metric accent"><div class="label">Banned Keys</div><strong id="mBanned">0</strong></div>
         </div>
 
         <div class="table-panel">
@@ -476,22 +524,22 @@ input:checked + .slider:before{transform:translateX(22px)}
         <div class="heading">
           <div>
             <h1 id="h1Gen">Key Generator</h1>
-            <p id="subGen">Generate custom or bulk keys</p>
+            <p id="subGen">Format: DARKIOS-1MONTH-XXXXXXXXXXXXXXXX / DARKIOS-TESTER-1MONTH-XXXXXXXXXXXXXXXX</p>
           </div>
         </div>
         <div class="table-panel" style="padding:18px">
           <div class="formgrid">
-            <div class="field"><label id="gLblName">Name (optional)</label><input id="genName" placeholder="Optional"></div>
-            <div class="field"><label id="gLblType">Key type</label><select id="genType"><option value="NORMAL">NORMAL</option><option value="TESTER">TESTER</option></select></div>
-            <div class="field"><label id="gLblDevices">Max IP / Devices</label><select id="genDevices"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="0">Unlimited</option></select></div>
-            <div class="field"><label id="gLblUnit">Validity unit</label><select id="genDurationUnit" onchange="toggleGenDuration()"><option value="m">Minutes</option><option value="h">Hours</option><option value="D" selected>Days</option><option value="W">Weeks</option><option value="M">Months</option><option value="LIFETIME">Lifetime</option></select></div>
-            <div class="field"><label id="gLblAmount">Duration amount</label><input id="genDurationValue" type="number" min="1" value="1"></div>
-            <div class="field"><label id="gLblPrefix">Key prefix</label><input id="genPrefix" value="DARKIOS"></div>
-            <div class="field"><label id="gLblCustomKey">Custom key (exact value, e.g. AMK123)</label><input id="genCustomKey" placeholder="AMK123"></div>
-            <div class="field"><label id="gLblCount">How many keys</label><input id="genCount" type="number" min="1" max="100" value="1"></div>
-            <div class="field full"><label id="gLblDesc">Description (optional)</label><input id="genDesc" placeholder="Optional"></div>
+            <div class="field"><label>Name (optional)</label><input id="genName" placeholder="Optional"></div>
+            <div class="field"><label>Key type</label><select id="genType"><option value="NORMAL">NORMAL</option><option value="TESTER">TESTER</option></select></div>
+            <div class="field"><label>Max IP / Devices</label><select id="genDevices"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="0">Unlimited</option></select></div>
+            <div class="field"><label>Validity unit</label><select id="genDurationUnit" onchange="toggleGenDuration()"><option value="HOUR">Hours (1HOUR)</option><option value="DAY" selected>Days (1DAY)</option><option value="WEEK">Weeks (1WEEK)</option><option value="MONTH">Months (1MONTH)</option><option value="YEAR">Years (1YEAR)</option><option value="LIFETIME">Lifetime</option></select></div>
+            <div class="field"><label>Duration amount</label><input id="genDurationValue" type="number" min="1" value="1"></div>
+            <div class="field"><label>Key prefix</label><input id="genPrefix" value="DARKIOS"></div>
+            <div class="field"><label>Custom key (exact value)</label><input id="genCustomKey" placeholder="Optional exact key"></div>
+            <div class="field"><label>How many keys</label><input id="genCount" type="number" min="1" max="100" value="1"></div>
+            <div class="field full"><label>Description (optional)</label><input id="genDesc" placeholder="Optional"></div>
           </div>
-          <button class="create" style="margin-top:16px" onclick="generateKeys()" id="btnGenSubmit">Generate API Key(s)</button>
+          <button class="create" style="margin-top:16px" onclick="generateKeys()">Generate API Key(s)</button>
           <div id="generated" style="margin-top:14px"></div>
         </div>
       </section>
@@ -503,7 +551,7 @@ input:checked + .slider:before{transform:translateX(22px)}
             <h1 id="h1Ban">Banned Keys</h1>
             <p id="subBan">Blocked keys list</p>
           </div>
-          <button class="create" onclick="openBan()" id="btnBanModal">＋ Ban key</button>
+          <button class="create" onclick="openBan()">＋ Ban key</button>
         </div>
         <div class="table-panel">
           <div class="table-wrap">
@@ -538,23 +586,23 @@ input:checked + .slider:before{transform:translateX(22px)}
           </div>
 
           <div class="setting-card">
-            <h3 id="setBackupTitle">Backup & Export</h3>
-            <p id="setBackupDesc">Export keys to TXT or JSON backup.</p>
+            <h3>Backup & Export</h3>
+            <p>Export keys to TXT or JSON backup.</p>
             <button class="secondary" onclick="exportTxt()">Download keys.txt</button>
             <button class="secondary" onclick="backupJson()">Download JSON</button>
           </div>
 
           <div class="setting-card">
-            <h3 id="setImportTitle">Import Keys</h3>
-            <p id="setImportDesc">Import keys from TXT or restore JSON.</p>
+            <h3>Import Keys</h3>
+            <p>Import keys from TXT or restore JSON.</p>
             <label class="secondary" style="display:inline-block">Import TXT<input type="file" accept=".txt,text/plain" hidden onchange="importTxt(this.files[0]);this.value=''"></label>
             <label class="secondary" style="display:inline-block">Restore JSON<input type="file" accept=".json" hidden onchange="restoreJson(this.files[0])"></label>
           </div>
 
           <div class="setting-card">
-            <h3 id="setClearTitle">Reset All Keys</h3>
-            <p id="setClearDesc">Delete all keys and active device sessions.</p>
-            <button class="secondary danger" onclick="clearAllKeys()" id="btnClearAll">Clear all keys</button>
+            <h3>Reset All Keys</h3>
+            <p>Delete all keys and active device sessions.</p>
+            <button class="secondary danger" onclick="clearAllKeys()">Clear all keys</button>
           </div>
         </div>
       </section>
@@ -572,17 +620,19 @@ input:checked + .slider:before{transform:translateX(22px)}
 
 <script>
 const $=s=>document.querySelector(s),uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const RANDOM_TOKEN_LEN = 16; // XXXXXXXXXXXXXXXX (16 random alphanumeric chars)
 
-let records=JSON.parse(localStorage.getItem('darkios_keys_v3')||'[]');
-let banned=JSON.parse(localStorage.getItem('darkios_banned_v3')||'[]');
-let deviceSessions=JSON.parse(localStorage.getItem('darkios_devices_v3')||'[]');
-let updateModeOn=JSON.parse(localStorage.getItem('darkios_update_mode_v3')||'false');
-let currentLang=localStorage.getItem('darkios_lang_v3')||'en';
+let records=JSON.parse(localStorage.getItem('darkios_keys_v4')||'[]');
+let banned=JSON.parse(localStorage.getItem('darkios_banned_v4')||'[]');
+let deviceSessions=JSON.parse(localStorage.getItem('darkios_devices_v4')||'[]');
+let updateModeOn=JSON.parse(localStorage.getItem('darkios_update_mode_v4')||'false');
+let currentLang=localStorage.getItem('darkios_lang_v4')||'en';
 
 const i18n={
   en:{
     api:'API Keys',generator:'Key Generator',banned:'Banned Keys',settings:'Settings',
-    subApi:'Manage and monitor generated keys',subGen:'Generate custom or bulk keys',
+    subApi:'Manage and monitor generated keys',
+    subGen:'Format: DARKIOS-1MONTH-XXXXXXXXXXXXXXXX / DARKIOS-TESTER-1MONTH-XXXXXXXXXXXXXXXX',
     subBan:'Blocked keys list',subSet:'System controls, UPDATE switch and backup',
     create:'＋ Create API Key',refresh:'Refresh',logout:'Sign out',reset:'Reset',
     noKeys:'No keys yet. Click "+ Create API Key" to create one.',
@@ -595,7 +645,8 @@ const i18n={
   },
   tr:{
     api:'API Anahtarları',generator:'Anahtar Oluşturucu',banned:'Yasaklı Anahtarlar',settings:'Ayarlar',
-    subApi:'Oluşturulan anahtarları yönetin ve izleyin',subGen:'Özel veya toplu anahtar oluşturun',
+    subApi:'Oluşturulan anahtarları yönetin ve izleyin',
+    subGen:'Format: DARKIOS-1MONTH-XXXXXXXXXXXXXXXX / DARKIOS-TESTER-1MONTH-XXXXXXXXXXXXXXXX',
     subBan:'Engellenen anahtarlar listesi',subSet:'Sistem kontrolleri, UPDATE anahtarı ve yedekleme',
     create:'＋ API Anahtarı Oluştur',refresh:'Yenile',logout:'Çıkış yap',reset:'Sıfırla',
     noKeys:'Henüz anahtar yok. Oluşturmak için "+ API Anahtarı Oluştur" butonuna basın.',
@@ -611,7 +662,7 @@ const t=k=>(i18n[currentLang]||i18n.en)[k]||i18n.en[k]||k;
 
 function setLang(lang){
   currentLang=i18n[lang]?lang:'en';
-  localStorage.setItem('darkios_lang_v3',currentLang);
+  localStorage.setItem('darkios_lang_v4',currentLang);
   applyLang();
   renderAll();
 }
@@ -640,10 +691,10 @@ function applyLang(){
 }
 
 function persist(){
-  localStorage.setItem('darkios_keys_v3',JSON.stringify(records));
-  localStorage.setItem('darkios_banned_v3',JSON.stringify(banned));
-  localStorage.setItem('darkios_devices_v3',JSON.stringify(deviceSessions));
-  localStorage.setItem('darkios_update_mode_v3',JSON.stringify(updateModeOn));
+  localStorage.setItem('darkios_keys_v4',JSON.stringify(records));
+  localStorage.setItem('darkios_banned_v4',JSON.stringify(banned));
+  localStorage.setItem('darkios_devices_v4',JSON.stringify(deviceSessions));
+  localStorage.setItem('darkios_update_mode_v4',JSON.stringify(updateModeOn));
 }
 function notify(msg){
   let el=$('#toast');el.textContent=msg;el.classList.add('show');
@@ -682,41 +733,57 @@ function logoutAdmin(){
 function durationToMs(unit,val){
   if(unit==='LIFETIME')return null;
   let n=Math.max(1,+val||1);
-  if(unit==='m')return n*60000;
-  if(unit==='h')return n*3600000;
-  if(unit==='D')return n*86400000;
-  if(unit==='W')return n*604800000;
-  if(unit==='M')return n*2592000000;
+  if(unit==='HOUR')return n*3600000;
+  if(unit==='DAY')return n*86400000;
+  if(unit==='WEEK')return n*604800000;
+  if(unit==='MONTH')return n*2592000000;
+  if(unit==='YEAR')return n*31536000000;
   return n*86400000;
 }
 
-function buildKeyValue({type,prefix,customKey}){
-  const ck=(customKey||'').trim();
-  if(ck)return ck; // Exact value as entered, e.g. AMK123
-  const p=(prefix||'DARKIOS').trim()||'DARKIOS';
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-  let rand='';
-  const bytes=new Uint8Array(12);crypto.getRandomValues(bytes);
-  for(let b of bytes)rand+=chars[b%chars.length];
-  return type==='TESTER'?`${p}-TESTER-${rand}`:`${p}-${rand}`;
+function buildDurationSegment(unit,val){
+  if(unit==='LIFETIME')return 'LIFETIME';
+  const n=Math.max(1,+val||1);
+  const singular={HOUR:'HOUR',DAY:'DAY',WEEK:'WEEK',MONTH:'MONTH',YEAR:'YEAR'}[unit]||'DAY';
+  const plural={HOUR:'HOURS',DAY:'DAYS',WEEK:'WEEKS',MONTH:'MONTHS',YEAR:'YEARS'}[unit]||'DAYS';
+  return `${n}${n===1?singular:plural}`;
 }
 
-// Countdown starts ONLY after first device connects (startedAt != null)
+function randomAlphaNum(len=RANDOM_TOKEN_LEN){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let out='';
+  const bytes=new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  for(let i=0;i<len;i++)out+=chars[bytes[i]%chars.length];
+  return out;
+}
+
+// Format:
+// NORMAL: DARKIOS-<DURATION>-XXXXXXXXXXXXXXXX
+// TESTER: DARKIOS-TESTER-<DURATION>-XXXXXXXXXXXXXXXX
+function buildKeyValue({type,prefix,unit,val,customKey}){
+  const ck=(customKey||'').trim();
+  if(ck)return ck;
+  const p=((prefix||'DARKIOS').trim()||'DARKIOS').toUpperCase();
+  const dur=buildDurationSegment(unit,val);
+  const token=randomAlphaNum(RANDOM_TOKEN_LEN);
+  return type==='TESTER'
+    ? `${p}-TESTER-${dur}-${token}`
+    : `${p}-${dur}-${token}`;
+}
+
 function checkStates(){
   let changed=false;
   const now=Date.now();
   records.forEach(r=>{
-    // Temporary pause expiration
     if(r.pauseType==='temp' && r.pauseUntil && r.pauseUntil<=now){
       r.pauseType=null;
       r.pauseUntil=null;
       r.status='Active';
       changed=true;
     }
-    // Duration countdown expiration (only if started)
     if(r.startedAt && r.durationMs && r.status==='Active'){
-      const endAt=r.startedAt+r.durationMs;
-      if(endAt<=now){
+      if((r.startedAt+r.durationMs)<=now){
         r.status='Expired';
         changed=true;
       }
@@ -803,7 +870,6 @@ function toggleUpdateMode(checked){
     updateModeOn=false;
     let restoredCount=0;
     records.forEach(r=>{
-      // Restore ONLY keys paused by UPDATE!!!; manual/temp pauses remain untouched
       if(r.status==='Paused'&&r.pauseType==='update'){
         r.pauseType=null;
         r.pauseUntil=null;
@@ -820,16 +886,40 @@ function resetFilters(){$('#search').value='';$('#statusFilter').value='';$('#ty
 function modal(title,body){$('#modalTitle').textContent=title;$('#modalBody').innerHTML=body;$('#modalBg').classList.add('open')}
 function closeModal(){$('#modalBg').classList.remove('open')}
 
+function showTurkishInfo(topic){
+  const infos={
+    addTime:{
+      title:'Zaman Ekleme (+)',
+      text:'Seçili anahtarın süresine istediğin miktarda dakika, saat veya gün ekler. Süresi dolmuş bir anahtara zaman eklersen yeniden aktif hale gelir.'
+    },
+    subTime:{
+      title:'Zaman Çıkarma (-)',
+      text:'Seçili anahtarın kalan süresinden girdiğin miktarda dakika, saat veya gün düşürür. Süre sıfırlanırsa anahtar süresi dolmuş (Expired) duruma geçer.'
+    },
+    addDevice:{
+      title:'Cihaz Sınırı Ekleme (+)',
+      text:'Anahtara bağlanabilecek maksimum cihaz/IP sayısını girdiğin sayı kadar artırır.'
+    },
+    subDevice:{
+      title:'Cihaz Sınırı Çıkarma (-)',
+      text:'Anahtarın maksimum cihaz/IP limitini girdiğin sayı kadar azaltır (en az 1 olarak kalır).'
+    }
+  };
+  const info=infos[topic]||{title:'Bilgi',text:'İşlem açıklaması.'};
+  modal(info.title,`<p class="footnote" style="font-size:12px;color:#fff;margin-top:0">${esc(info.text)}</p>
+    <div class="modal-actions"><button class="create" onclick="closeModal()">Tamam</button></div>`);
+}
+
 function openCreate(){
   modal('Create API Key',`<form onsubmit="createRecord(event)">
     <div class="formgrid">
       <div class="field"><label>Name (optional)</label><input id="newName" placeholder="Optional"></div>
       <div class="field"><label>Key type</label><select id="newType"><option value="NORMAL">NORMAL</option><option value="TESTER">TESTER</option></select></div>
       <div class="field"><label>Max IP / Devices</label><select id="newDeviceLimit"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option><option value="0">Unlimited</option></select></div>
-      <div class="field"><label>Validity unit</label><select id="newDurationUnit" onchange="toggleModalDuration()"><option value="m">Minutes</option><option value="h">Hours</option><option value="D" selected>Days</option><option value="W">Weeks</option><option value="M">Months</option><option value="LIFETIME">Lifetime</option></select></div>
+      <div class="field"><label>Validity unit</label><select id="newDurationUnit" onchange="toggleModalDuration()"><option value="HOUR">Hours (1HOUR)</option><option value="DAY" selected>Days (1DAY)</option><option value="WEEK">Weeks (1WEEK)</option><option value="MONTH">Months (1MONTH)</option><option value="YEAR">Years (1YEAR)</option><option value="LIFETIME">Lifetime</option></select></div>
       <div class="field"><label>Duration amount</label><input id="newDurationValue" type="number" min="1" value="1"></div>
       <div class="field"><label>Key prefix</label><input id="newPrefix" value="DARKIOS"></div>
-      <div class="field full"><label>Custom key (exact value, e.g. AMK123)</label><input id="newCustomKey" placeholder="AMK123"></div>
+      <div class="field full"><label>Custom key (exact value)</label><input id="newCustomKey" placeholder="Optional exact key"></div>
       <div class="field full"><label>Description (optional)</label><input id="newDesc" placeholder="Optional"></div>
     </div>
     <p class="footnote">Countdown starts only when the first device connects.</p>
@@ -869,9 +959,9 @@ function createRecord(e){
     pauseUntil:null,
     deviceLimit:+($('#newDeviceLimit').value||1),
     created:new Date().toISOString().slice(0,16).replace('T',' '),
-    key:buildKeyValue({type,prefix,customKey}),
+    key:buildKeyValue({type,prefix,unit,val,customKey}),
     durationMs,
-    startedAt:null // Starts only when a device enters
+    startedAt:null
   };
   records.unshift(r);persist();closeModal();renderAll();notify('OK');
   modal('Key Created',`<input style="width:100%;background:#070709;color:#fff;border:1px solid #24242f;padding:10px;border-radius:7px;font-family:'JetBrains Mono',monospace" id="createdKey" value="${esc(r.key)}" readonly>
@@ -881,34 +971,48 @@ function createRecord(e){
     </div>`);
 }
 
+// Simplified, clean Key Actions modal with Custom + Info (i) buttons
 function rowMenu(id){
   const r=records.find(x=>x.id===id);if(!r)return;
+  const limitText=r.deviceLimit===0?'Unlimited':(r.deviceLimit||1);
   modal('Key Actions',`
-    <p class="footnote"><b>${esc(r.key)}</b> · ${esc(statusBadgeText(r))} · ${esc(timeLeftText(r))}</p>
-
-    <div class="section-label">Key & Device</div>
-    <div class="modal-actions" style="justify-content:flex-start">
-      <button class="secondary" onclick="copyKey('${id}')">Copy</button>
-      <button class="secondary" onclick="simulateConnect('${id}')">Test Device Connect</button>
-      <button class="secondary" onclick="changeDeviceLimit('${id}',1)">+1 Device Slot</button>
-      <button class="secondary" onclick="changeDeviceLimit('${id}',-1)">-1 Device Slot</button>
+    <div class="clean-meta">
+      <div><strong>${esc(r.key)}</strong></div>
+      <div>Status: <span>${esc(statusBadgeText(r))}</span> · Limit: <span>${esc(limitText)}</span> · Time: <span>${esc(timeLeftText(r))}</span></div>
     </div>
 
-    <div class="section-label">Time (+/-)</div>
-    <div class="modal-actions" style="justify-content:flex-start">
-      <button class="secondary" onclick="adjustTimeModal('${id}','add')">+ Add Time</button>
-      <button class="secondary" onclick="adjustTimeModal('${id}','sub')">- Remove Time</button>
-    </div>
+    <div class="clean-list">
+      <button class="clean-btn" onclick="copyKey('${id}')"><span>Copy Key</span><span>Copy</span></button>
+      <button class="clean-btn" onclick="simulateConnect('${id}')"><span>Simulate Device Connect</span><span>Start Timer</span></button>
 
-    <div class="section-label">Pause / Ban / Delete</div>
-    <div class="modal-actions" style="justify-content:flex-start">
+      <div class="clean-row">
+        <button class="clean-btn" onclick="customTimeModal('${id}','add')"><span>+ Add Custom Time</span><span>Custom</span></button>
+        <button class="info-btn" title="Info" onclick="showTurkishInfo('addTime')">i</button>
+      </div>
+
+      <div class="clean-row">
+        <button class="clean-btn" onclick="customTimeModal('${id}','sub')"><span>- Remove Custom Time</span><span>Custom</span></button>
+        <button class="info-btn" title="Info" onclick="showTurkishInfo('subTime')">i</button>
+      </div>
+
+      <div class="clean-row">
+        <button class="clean-btn" onclick="customDeviceModal('${id}','add')"><span>+ Add Custom Device Limit</span><span>Custom</span></button>
+        <button class="info-btn" title="Info" onclick="showTurkishInfo('addDevice')">i</button>
+      </div>
+
+      <div class="clean-row">
+        <button class="clean-btn" onclick="customDeviceModal('${id}','sub')"><span>- Remove Custom Device Limit</span><span>Custom</span></button>
+        <button class="info-btn" title="Info" onclick="showTurkishInfo('subDevice')">i</button>
+      </div>
+
       ${r.status==='Paused'
-        ? `<button class="secondary" onclick="resumeKey('${id}')">Resume Key</button>`
-        : `<button class="secondary" onclick="pauseIndefinite('${id}')">Pause (Until I Open)</button>
-           <button class="secondary" onclick="pauseTimedModal('${id}')">Pause (Set Time)</button>`
+        ? `<button class="clean-btn" onclick="resumeKey('${id}')"><span>Resume Key</span><span>Active</span></button>`
+        : `<button class="clean-btn" onclick="pauseIndefinite('${id}')"><span>Pause Key (Manual)</span><span>Stop</span></button>
+           <button class="clean-btn" onclick="pauseTimedModal('${id}')"><span>Pause Key (Timed)</span><span>Timer</span></button>`
       }
-      <button class="secondary danger" onclick="banRecord('${id}')">Ban Key</button>
-      <button class="secondary danger" onclick="deleteRecord('${id}')">Delete</button>
+
+      <button class="clean-btn danger" onclick="banRecord('${id}')"><span>Ban Key</span><span>Ban</span></button>
+      <button class="clean-btn danger" onclick="deleteRecord('${id}')"><span>Delete Key</span><span>Delete</span></button>
     </div>
   `);
 }
@@ -919,26 +1023,41 @@ function simulateConnect(id){
   const r=records.find(x=>x.id===id);if(!r)return;
   if(!r.startedAt){
     r.startedAt=Date.now();
-    notify('Countdown started');
+    notify('Timer started');
   }
   const ip='192.168.1.'+(Math.floor(Math.random()*200)+10);
   deviceSessions.unshift({id:uid(),keyId:id,ip,status:'Active',at:new Date().toLocaleString()});
   persist();renderAll();rowMenu(id);
 }
 
-function changeDeviceLimit(id,delta){
+function customDeviceModal(id,mode){
   const r=records.find(x=>x.id===id);if(!r)return;
-  const cur=r.deviceLimit===0?1:(r.deviceLimit||1);
-  r.deviceLimit=Math.max(1,cur+delta);
-  persist();renderAll();rowMenu(id);notify(`Limit: ${r.deviceLimit}`);
+  modal(mode==='add'?'+ Add Custom Device Limit':'- Remove Custom Device Limit',`
+    <div class="field">
+      <label>Custom device count</label>
+      <input id="customDevAmt" type="number" min="1" value="1">
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="rowMenu('${id}')">Back</button>
+      <button class="create" onclick="applyCustomDevice('${id}','${mode}')">Apply</button>
+    </div>
+  `);
 }
 
-function adjustTimeModal(id,mode){
+function applyCustomDevice(id,mode){
   const r=records.find(x=>x.id===id);if(!r)return;
-  modal(mode==='add'?'+ Add Time':'- Remove Time',`
+  const amt=Math.max(1,+$('#customDevAmt').value||1);
+  const cur=r.deviceLimit===0?1:(r.deviceLimit||1);
+  r.deviceLimit=mode==='add'?(cur+amt):Math.max(1,cur-amt);
+  persist();renderAll();rowMenu(id);notify(`Devices: ${r.deviceLimit}`);
+}
+
+function customTimeModal(id,mode){
+  const r=records.find(x=>x.id===id);if(!r)return;
+  modal(mode==='add'?'+ Add Custom Time':'- Remove Custom Time',`
     <div class="formgrid">
-      <div class="field"><label>Amount</label><input id="adjAmt" type="number" min="1" value="1"></div>
-      <div class="field"><label>Unit</label><select id="adjUnit"><option value="m">Minutes</option><option value="h">Hours</option><option value="D" selected>Days</option></select></div>
+      <div class="field"><label>Custom amount</label><input id="adjAmt" type="number" min="1" value="1"></div>
+      <div class="field"><label>Unit</label><select id="adjUnit"><option value="m">Minutes</option><option value="h" selected>Hours</option><option value="D">Days</option></select></div>
     </div>
     <div class="modal-actions">
       <button class="secondary" onclick="rowMenu('${id}')">Back</button>
@@ -953,7 +1072,6 @@ function applyTimeAdjust(id,mode){
   const unit=$('#adjUnit').value;
   const delta=amt*(unit==='m'?60000:unit==='h'?3600000:86400000);
   if(!r.durationMs){
-    // If lifetime and adding time, set base from now
     if(mode==='add'){
       r.startedAt=r.startedAt||Date.now();
       r.durationMs=delta;
@@ -983,7 +1101,7 @@ function pauseIndefinite(id){
 }
 
 function pauseTimedModal(id){
-  modal('Pause (Set Time)',`
+  modal('Pause Key (Timed)',`
     <div class="formgrid">
       <div class="field"><label>Amount</label><input id="pAmt" type="number" min="1" value="1"></div>
       <div class="field"><label>Unit</label><select id="pUnit"><option value="m">Minutes</option><option value="h" selected>Hours</option><option value="D">Days</option></select></div>
@@ -1039,7 +1157,13 @@ function generateKeys(){
   const out=[];
 
   for(let i=0;i<n;i++){
-    const keyVal=n===1&&customKey.trim()?customKey.trim():buildKeyValue({type,prefix,customKey:n===1?customKey:''});
+    const keyVal=buildKeyValue({
+      type,
+      prefix,
+      unit,
+      val,
+      customKey:(n===1&&customKey.trim())?customKey:''
+    });
     const r={
       id:uid(),
       name,
