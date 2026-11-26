@@ -61,7 +61,25 @@ struct Color255 {
     uint8_t r, g, b, a;
 };
 
-
+static std::string FStringToUtf8Safe(const FString& fstr) {
+    if (!fstr.GetData() || fstr.Num() <= 0) return "";
+    int len = fstr.Num();
+    if (len > 256) len = 256;
+    // Bəzi SDK-larda son simvol '\0' ola bilər
+    while (len > 0 && fstr.GetData()[len - 1] == 0) {
+        --len;
+    }
+    if (len <= 0) return "";
+    CFStringRef value = CFStringCreateWithCharacters(kCFAllocatorDefault, (const UniChar*)fstr.GetData(), len);
+    if (!value) return "";
+    char utf8[1024] = {0};
+    std::string out;
+    if (CFStringGetCString(value, utf8, sizeof(utf8), kCFStringEncodingUTF8) && utf8[0]) {
+        out = utf8;
+    }
+    CFRelease(value);
+    return out;
+}
  
  
  
@@ -584,17 +602,8 @@ ImVec2 DrawCyberHealthCard(ASTExtraPlayerCharacter* p, ImDrawList* draw, ImVec2 
         const bool bot=p->bIsAI || p->bEnsure;
         std::string label=bot?"BOT":"PLAYER";
         if(!bot) {
-            const auto& name=p->PlayerName;
-            const int count=name.GetLength();
-             
-            if(name.GetData() && count>0 && count<256) {
-                CFStringRef value=CFStringCreateWithCharacters(kCFAllocatorDefault,(const UniChar*)name.GetData(),count);
-                if(value) {
-                    char utf8[1024];
-                    if(CFStringGetCString(value,utf8,sizeof(utf8),kCFStringEncodingUTF8) && utf8[0])label=utf8;
-                    CFRelease(value);
-                }
-            }
+            std::string decoded = FStringToUtf8Safe(p->PlayerName);
+            if (!decoded.empty()) label = decoded;
         }
         float fs=11.f*scale;
         ImVec2 ts=font->CalcTextSizeA(fs,FLT_MAX,0.f,label.c_str());
@@ -640,8 +649,7 @@ void DrawPlayerName(ASTExtraPlayerCharacter* p, ImDrawList* d, bool textBorder)
     screenPos.X *= espProjectionScale.x;
     screenPos.Y *= espProjectionScale.y;
 
-    std::wstring wnm = p->PlayerName.ToWString();
-    std::string playerName(wnm.begin(), wnm.end());
+    std::string playerName = FStringToUtf8Safe(p->PlayerName);
     if (playerName.empty())
         playerName = "BOT";
 
@@ -1222,8 +1230,7 @@ if (IsStyle == 0)
             if (isBot) {
                 nameStr = "\xef\x95\x84";
             } else {
-                std::wstring wnm = p->PlayerName.ToWString();
-                nameStr = std::string(wnm.begin(), wnm.end());
+                nameStr = FStringToUtf8Safe(p->PlayerName);
                 if (nameStr.empty()) nameStr = "?";
             }
             const float nfs = 9.5f;
