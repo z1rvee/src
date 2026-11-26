@@ -61,6 +61,17 @@ struct Color255 {
     uint8_t r, g, b, a;
 };
 
+static bool IsImGuiReadyAndValidDisplay(ImVec2* outDisplay = nullptr) {
+    if (ImGui::GetCurrentContext() == nullptr) return false;
+    ImGuiIO& io = ImGui::GetIO();
+    if (!std::isfinite(io.DisplaySize.x) || !std::isfinite(io.DisplaySize.y) ||
+        io.DisplaySize.x <= 1.f || io.DisplaySize.y <= 1.f) {
+        return false;
+    }
+    if (outDisplay) *outDisplay = io.DisplaySize;
+    return true;
+}
+
 static std::string FStringToUtf8Safe(const FString& fstr) {
     if (!fstr.GetData() || fstr.Num() <= 0) return "";
     int len = fstr.Num();
@@ -153,7 +164,7 @@ bool bIsAimingAtLocalPlayer(ASTExtraPlayerCharacter* Player) {
     FVector Forward = Player->GetActorForwardVector();
 
     float Angle = acosf(
-        DotProduct(Forward, NormalizeVector(Direction))
+        ImClamp(DotProduct(Forward, NormalizeVector(Direction)), -1.f, 1.f)
     ) * (180.0f / M_PI);
 
     return Angle <= AngleSensitivity;
@@ -161,12 +172,13 @@ bool bIsAimingAtLocalPlayer(ASTExtraPlayerCharacter* Player) {
 
 // HMOOD__TG@i_8_f
 static float HealthCardScale() {
+    if (ImGui::GetCurrentContext() == nullptr) return 1.f;
     return ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f) * ImClamp(globalHpAlphaF, .5f, 5.f);
 }
 
 static void DrawEspTextStroke(ImDrawList* draw, ImFont* font, float fontSize,
                               ImVec2 position, ImU32 color, const char* text) {
-    if (!draw || !font || !text) return;
+    if (!draw || !font || !text || !*text) return;
     const float width = ImClamp(strokeIntensity, .5f, 5.f);
     const ImU32 stroke = ImGui::ColorConvertFloat4ToU32(bgColor.Value);
     const ImVec2 offsets[] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1},
@@ -316,6 +328,7 @@ namespace {
         return ICON_FA_CUBE;
     }
     static void CaptureVehicleDetails(ASTExtraVehicleBase* vehicle, WorldMarker& marker) {
+        if (!vehicle) return;
         marker.name = GetVehicleName(vehicle);
         if (auto* common = vehicle->VehicleCommon) {
             if (std::isfinite(common->HPMax) && common->HPMax > 0.f && std::isfinite(common->HP))
@@ -329,6 +342,7 @@ namespace {
                                     size_t limit, unsigned feature, Describe describe,
                                     std::vector<WorldMarker>& markers) {
         markers.clear();
+        if (!world) return;
         auto* gameplay = (UGameplayStatics*)UGameplayStatics::StaticClass();
         if (!gameplay) return;
         TArray<AActor*> actors{};
@@ -396,6 +410,7 @@ void CaptureWorldEsp(ASTExtraPlayerCharacter* player, ASTExtraPlayerController* 
     else if (itemScan < 0. || now - itemScan >= 3.) {
         CaptureWorldActors<APickUpWrapperActor>(world, cache.playerPosition, range, 240, WorldItems,
             [](APickUpWrapperActor* actor, WorldMarker& marker) {
+                if (!actor) return false;
                 marker.itemID = actor->DefineID.TypeSpecificID;
                 if (marker.itemID <= 0) return false;
                 const char* category = WorldItemCategory(marker.itemID);
@@ -433,6 +448,7 @@ void CaptureWorldEsp(ASTExtraPlayerCharacter* player, ASTExtraPlayerController* 
 // HMOOD__TG@i_8_f
 static void DrawVehicleRadarCard(ImDrawList* draw, ImFont* font, const WorldMarker& marker,
                                   ImVec2 screen, float distance) {
+    if (!draw || !font) return;
     const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
     const float fs = 12.f * scale, height = 31.f * scale;
     char label[128];
@@ -465,6 +481,7 @@ static void DrawVehicleRadarCard(ImDrawList* draw, ImFont* font, const WorldMark
 
 static void DrawWorldMarker(ImDrawList* draw, ImFont* font, const WorldMarker& marker,
                              ImVec2 screen, float distance, float maxDistance) {
+    if (!draw || !font) return;
     if (marker.feature == WorldVehicle) {
         DrawVehicleRadarCard(draw, font, marker, screen, distance);
         return;
@@ -481,7 +498,8 @@ static void DrawWorldMarker(ImDrawList* draw, ImFont* font, const WorldMarker& m
         draw->AddText(font, size, position, marker.color, label);
         return;
     }
-    const float relative = ImClamp(distance / maxDistance, 0.f, 1.f);
+    const float safeMax = fmaxf(maxDistance, 1.f);
+    const float relative = ImClamp(distance / safeMax, 0.f, 1.f);
     const float alpha = 1.f - .4f * relative;
     ImVec4 accent = ImGui::ColorConvertU32ToFloat4(marker.color);
     accent.w *= alpha;
@@ -497,7 +515,7 @@ static void DrawWorldMarker(ImDrawList* draw, ImFont* font, const WorldMarker& m
     snprintf(meters, sizeof(meters), "%.0fm", distance);
     const ImVec2 nameSize = font->CalcTextSizeA(fs, FLT_MAX, 0.f, marker.name.c_str());
     const ImVec2 distanceSize = font->CalcTextSizeA(fs, FLT_MAX, 0.f, meters);
-    const ImVec2 iconSize = font->CalcTextSizeA(fs, FLT_MAX, 0.f, marker.icon);
+    const ImVec2 iconSize = font->CalcTextSizeA(fs, FLT_MAX, 0.f, marker.icon ? marker.icon : "");
     const float rightWidth = fmaxf(height, distanceSize.x + gap * 2.f);
     const float width = height + gap + nameSize.x + gap + rightWidth;
     const float left = screen.x - width * .5f, top = screen.y - 9.f * scale - height;
@@ -510,7 +528,7 @@ static void DrawWorldMarker(ImDrawList* draw, ImFont* font, const WorldMarker& m
     draw->AddLine(ImVec2(left + height, top + 3.f * scale),
                   ImVec2(left + height, top + height - 3.f * scale), color, scale);
     draw->AddText(font, fs, ImVec2(left + (height - iconSize.x) * .5f,
-                  top + (height - iconSize.y) * .5f), color, marker.icon);
+                  top + (height - iconSize.y) * .5f), color, marker.icon ? marker.icon : "");
     const ImVec2 namePosition(left + height + gap, top + (height - nameSize.y) * .5f);
     const ImU32 text = IM_COL32(238, 242, 247, (int)(255.f * alpha));
     if (textBorder) DrawEspTextStroke(draw, font, fs, namePosition, text, marker.name.c_str());
@@ -530,6 +548,8 @@ void DrawWorldEsp() {
     worldRange.store(range, std::memory_order_relaxed);
     worldRequests.store(requested, std::memory_order_release);
     if (!requested) return;
+    ImVec2 size;
+    if (!IsImGuiReadyAndValidDisplay(&size)) return;
     WorldFrame frame;
     {
         std::lock_guard<std::mutex> lock(worldFrameMutex);
@@ -545,11 +565,13 @@ void DrawWorldEsp() {
     const FVector forward{cp * cy, cp * sy, sp};
     const FVector right{sr * sp * cy - cr * sy, sr * sp * sy + cr * cy, -sr * cp};
     const FVector up{-(cr * sp * cy + sr * sy), cy * sr - cr * sp * sy, cr * cp};
-    const ImVec2 size = ImGui::GetIO().DisplaySize;
-    const float focal = size.x * .5f / tanf(frame.fov * radians * .5f);
+    const float tanHalfFov = tanf(frame.fov * radians * .5f);
+    if (!std::isfinite(tanHalfFov) || fabsf(tanHalfFov) < 1e-5f) return;
+    const float focal = size.x * .5f / tanHalfFov;
     ImFont* font = cyberMenuFont ? cyberMenuFont : mainFont;
     if (!font || !std::isfinite(focal)) return;
     ImDrawList* draw = ImGui::GetBackgroundDrawList();
+    if (!draw) return;
     auto render = [&](const std::vector<WorldMarker>& markers) {
         for (const auto& marker : markers) {
             if (!(requested & marker.feature)) continue;
@@ -578,7 +600,7 @@ void DrawWorldEsp() {
 
 ImVec2 DrawCyberHealthCard(ASTExtraPlayerCharacter* p, ImDrawList* draw, ImVec2 head)
 {
-    if (!p || !draw || !mainFont) return ImVec2(0,0);
+    if (!p || !draw || !mainFont || ImGui::GetCurrentContext() == nullptr) return ImVec2(0,0);
     const float scale=HealthCardScale();
     const float w=124.f*scale,h=34.f*scale;
     const float x=head.x-w*.5f,y=head.y-h-10.f*scale;
@@ -608,7 +630,7 @@ ImVec2 DrawCyberHealthCard(ASTExtraPlayerCharacter* p, ImDrawList* draw, ImVec2 
         float fs=11.f*scale;
         ImVec2 ts=font->CalcTextSizeA(fs,FLT_MAX,0.f,label.c_str());
         const float room=w-chipW-8*scale;
-        if(ts.x>room){fs*=room/ts.x;ts=font->CalcTextSizeA(fs,FLT_MAX,0.f,label.c_str());}
+        if(ts.x>room && ts.x>0.f){fs*=room/ts.x;ts=font->CalcTextSizeA(fs,FLT_MAX,0.f,label.c_str());}
         const ImVec2 pos(x+chipW+(w-chipW-ts.x)*.5f,y+8.5f*scale);
         draw->PushClipRect(ImVec2(x+chipW,y+3*scale),ImVec2(x+w-3*scale,y+h-8*scale),true);
         draw->AddText(font,fs,pos,IM_COL32(232,240,247,255),label.c_str());
@@ -625,7 +647,7 @@ ImVec2 DrawCyberHealthCard(ASTExtraPlayerCharacter* p, ImDrawList* draw, ImVec2 
 
 ImVec2 DrawHealthVnHax(ASTExtraPlayerCharacter* p, ImDrawList* draw)
 {
-    if(!p || !p->RootComponent)return ImVec2(0,0);
+    if(!p || !draw || !p->RootComponent)return ImVec2(0,0);
     FVector head=p->GetBonePos("Head",FVector());
     FVector2D screen;
     if(!WorldToScreenBone(head,&screen))return ImVec2(0,0);
@@ -634,7 +656,7 @@ ImVec2 DrawHealthVnHax(ASTExtraPlayerCharacter* p, ImDrawList* draw)
 
 void DrawPlayerName(ASTExtraPlayerCharacter* p, ImDrawList* d, bool textBorder)
 {
-    if (!p || !p->RootComponent)
+    if (!p || !d || !mainFont || !p->RootComponent)
         return;
 
     FVector root = p->RootComponent->K2_GetComponentLocation();
@@ -688,7 +710,8 @@ void DrawPlayerName(ASTExtraPlayerCharacter* p, ImDrawList* d, bool textBorder)
 
 void DrawTeamID(ASTExtraPlayerCharacter* p, ImDrawList* d, ImVec2 healthPos, bool textBorder)
 {
-    if (!p || !p->RootComponent) return;
+    (void)healthPos;
+    if (!p || !d || !mainFont || !p->RootComponent) return;
 
     FVector root = p->RootComponent->K2_GetComponentLocation();
     FVector headPos = root;
@@ -721,7 +744,7 @@ void DrawTeamID(ASTExtraPlayerCharacter* p, ImDrawList* d, ImVec2 healthPos, boo
 
 void DrawWeaponName(ASTExtraPlayerCharacter* p, ImDrawList* d, bool textBorder)
 {
-    if (!p || !p->RootComponent)
+    if (!p || !d || !mainFont || !p->RootComponent)
         return;
 
     FVector root = p->RootComponent->K2_GetComponentLocation();
@@ -742,8 +765,10 @@ void DrawWeaponName(ASTExtraPlayerCharacter* p, ImDrawList* d, bool textBorder)
         auto slot = wm->GetCurrentUsingPropSlot();
         if ((int)slot.GetValue() >= 1 && (int)slot.GetValue() <= 3)
         {
-            if (auto cw = wm->CurrentWeaponReplicated)
-                weaponName = cw->GetWeaponName().ToString();
+            if (auto cw = wm->CurrentWeaponReplicated) {
+                std::string candidate = cw->GetWeaponName().ToString();
+                if (!candidate.empty()) weaponName = candidate;
+            }
         }
     }
 
@@ -781,7 +806,7 @@ void DrawWeaponName(ASTExtraPlayerCharacter* p, ImDrawList* d, bool textBorder)
 }
 
 static void DrawPlayerDistance(ImDrawList* draw, ImVec2 feet, float distance) {
-    if (!draw || !std::isfinite(distance) || distance <= .5f) return;
+    if (!draw || !std::isfinite(distance) || distance <= .5f || ImGui::GetCurrentContext() == nullptr) return;
     ImFont* font = cyberMenuFont ? cyberMenuFont : mainFont;
     if (!font) return;
     const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
@@ -800,7 +825,7 @@ static void DrawPlayerDistance(ImDrawList* draw, ImVec2 feet, float distance) {
 
 static void DrawPlayerCornerBox(ImDrawList* draw, ImVec2 head, ImVec2 feet) {
     const float height = feet.y - head.y;
-    if (!draw || !std::isfinite(height) || height < 3.f) return;
+    if (!draw || !std::isfinite(height) || height < 3.f || ImGui::GetCurrentContext() == nullptr) return;
     const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
     const float halfWidth = height * .225f, center = (head.x + feet.x) * .5f;
     const float left = center - halfWidth, right = center + halfWidth;
@@ -823,6 +848,7 @@ static void DrawPlayerCornerBox(ImDrawList* draw, ImVec2 head, ImVec2 feet) {
 // HMOOD__TG@i_8_f
 void DrawSkeletonAdvanced(ASTExtraPlayerCharacter* player, bool isBot, bool isVisible) {
     if (!player || !player->RootComponent || !player->Mesh || !g_PlayerController) return;
+    if (ImGui::GetCurrentContext() == nullptr) return;
     static const char* bones[] = {
         "Head", "neck_01", "spine_03", "spine_01", "pelvis",
         "upperarm_r", "lowerarm_r", "hand_r", "upperarm_l", "lowerarm_l", "hand_l",
@@ -848,6 +874,7 @@ void DrawSkeletonAdvanced(ASTExtraPlayerCharacter* player, bool isBot, bool isVi
     const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
     const float thickness = fmaxf(.8f, 1.05f * scale);
     ImDrawList* draw = ImGui::GetBackgroundDrawList();
+    if (!draw) return;
     const ImVec2 display = ImGui::GetIO().DisplaySize;
     auto segment = [&](ImVec2 a, ImVec2 b) {
         const float dx = a.x - b.x, dy = a.y - b.y;
@@ -870,6 +897,7 @@ void DrawSkeletonAdvanced(ASTExtraPlayerCharacter* player, bool isBot, bool isVi
 }
 
 static ImVec2 HudLineOrigin() {
+    if (ImGui::GetCurrentContext() == nullptr) return ImVec2(0.f, 0.f);
     const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
     return ImVec2(ImGui::GetIO().DisplaySize.x * .5f, 94.f * scale);
 }
@@ -884,6 +912,7 @@ static void DrawEnemyAimingWarning(bool active) {
         showing = false;
         return;
     }
+    if (ImGui::GetCurrentContext() == nullptr) return;
     if (!showing) started = now;
     showing = true;
     const bool yellow = std::fmod(now - started, .8) >= .4;
@@ -891,6 +920,7 @@ static void DrawEnemyAimingWarning(bool active) {
     const float size = 50.f * scale, cx = ImGui::GetIO().DisplaySize.x * .5f;
     const float top = 128.f * scale;
     ImDrawList* draw = ImGui::GetForegroundDrawList();
+    if (!draw) return;
     const ImVec2 a(cx - size * .5f, top), b(cx + size * .5f, top + size);
     draw->AddRect(a, b, IM_COL32(255, 13, 55, 26), 11.f * scale, 0, 9.f * scale);
     draw->AddRect(a, b, IM_COL32(255, 18, 57, 64), 11.f * scale, 0, 6.f * scale);
@@ -923,8 +953,9 @@ static void DrawEnemyAimingWarning(bool active) {
 
 void Draw360Alert(const std::vector<ASTExtraPlayerCharacter*>& enemies)
 {
-    if(!g_LocalPlayer || !g_LocalPlayer->RootComponent || !mainFont)return;
+    if(!g_LocalPlayer || !g_LocalPlayer->RootComponent || !mainFont || ImGui::GetCurrentContext() == nullptr)return;
     ImDrawList* draw=ImGui::GetForegroundDrawList();
+    if(!draw)return;
     const ImGuiIO& io=ImGui::GetIO();
     const float scale=ImClamp(io.DisplaySize.y/592.f,.55f,1.4f);
     const ImVec2 center(io.DisplaySize.x*.5f,io.DisplaySize.y*.5f);
@@ -965,6 +996,7 @@ void Draw360Alert(const std::vector<ASTExtraPlayerCharacter*>& enemies)
 }
 
 static void DrawEnemyCounters(int players, int bots) {
+    if (ImGui::GetCurrentContext() == nullptr) return;
     ImFont* font = cyberMenuFont ? cyberMenuFont : mainFont;
     if (!font) return;
     const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
@@ -980,6 +1012,7 @@ static void DrawEnemyCounters(int players, int bots) {
     const ImU32 backgrounds[] = {IM_COL32(9, 29, 42, 229), IM_COL32(32, 27, 9, 234)};
     float left = (ImGui::GetIO().DisplaySize.x - widths[0] - widths[1] - gap) * .5f;
     ImDrawList* draw = ImGui::GetForegroundDrawList();
+    if (!draw) return;
     for (int i = 0; i < 2; ++i) {
         const ImVec2 a(left, top), b(left + widths[i], top + height);
         draw->AddRectFilled(a, b, backgrounds[i], 9.f * scale);
@@ -997,7 +1030,7 @@ static void DrawEnemyCounters(int players, int bots) {
 
 void DrawGameInfo()
 {
-    if (!imgui::GameInfo)
+    if (!imgui::GameInfo || ImGui::GetCurrentContext() == nullptr)
         return;
 
     ImGui::SetNextWindowPos(ImVec2(20, 325), ImGuiCond_Always);
@@ -1042,11 +1075,12 @@ void DrawGameInfo()
 
 void DrawFOVCircle(float Cross)
 {
-    if (!Settings::Aimbot::SilentAimSettings::EnableFov)
+    if (!Settings::Aimbot::SilentAimSettings::EnableFov || ImGui::GetCurrentContext() == nullptr)
         return;
     if (Cross <= 0.0f) return;  
 
     ImDrawList* d = ImGui::GetBackgroundDrawList();
+    if (!d) return;
     ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     ImVec2 center = ImVec2(displaySize.x / 2.0f, displaySize.y / 2.0f);
 
@@ -1073,8 +1107,12 @@ void DrawAimingLine()
 {
     if (!Settings::Aimbot::SilentAimSettings::AimingLine || !g_PlayerController)
         return;
+    ImVec2 displaySize;
+    if (!IsImGuiReadyAndValidDisplay(&displaySize))
+        return;
 
     ImDrawList* d = ImGui::GetBackgroundDrawList();
+    if (!d) return;
 
     ASTExtraPlayerCharacter* Target = GetTargetByCrossDist();
     if (!Target) return;
@@ -1085,17 +1123,18 @@ void DrawAimingLine()
     if (!g_PlayerController->ProjectWorldLocationToScreen(headPos, false, &hs))
         return;
 
-    ImVec2 screenCenter = ImVec2(ImGui::GetIO().DisplaySize.x * 0.5f,
-                                 ImGui::GetIO().DisplaySize.y * 0.5f);
+    ImVec2 screenCenter = ImVec2(displaySize.x * 0.5f,
+                                 displaySize.y * 0.5f);
 
-    const float screenWidth = ImGui::GetIO().DisplaySize.x;
-    const float screenHeight = ImGui::GetIO().DisplaySize.y;
+    const float screenWidth = displaySize.x;
+    const float screenHeight = displaySize.y;
     int viewportWidth = 0, viewportHeight = 0;
     g_PlayerController->GetViewportSize(&viewportWidth, &viewportHeight);
     if (viewportWidth <= 0 || viewportHeight <= 0) return;
     hs.X *= screenWidth / viewportWidth;
     hs.Y *= screenHeight / viewportHeight;
-    if (hs.X >= 0.f && hs.X <= screenWidth && hs.Y >= 0.f && hs.Y <= screenHeight)
+    if (std::isfinite(hs.X) && std::isfinite(hs.Y) &&
+        hs.X >= 0.f && hs.X <= screenWidth && hs.Y >= 0.f && hs.Y <= screenHeight)
         d->AddLine(screenCenter, ImVec2(hs.X, hs.Y), IM_COL32(255, 255, 255, 255), 1.f);
 }
 
@@ -1103,23 +1142,25 @@ void DrawAimingLine()
 
 // HMOOD__TG@i_8_f
 void Drawesp() {
+    ImVec2 displaySize;
+    if (!IsImGuiReadyAndValidDisplay(&displaySize)) return;
+
     ImGuiWindowFlags f = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
                          ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
                          ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoInputs |
                          ImGuiWindowFlags_NoBackground;
 
     ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+    ImGui::SetNextWindowSize(displaySize);
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 1.f);
 
     if (!ImGui::Begin("ESPOverlay", nullptr, f)) { ImGui::End(); ImGui::PopStyleVar(); return; }
 
     ImDrawList* d = ImGui::GetWindowDrawList();
-    ImDrawList* bg = d;
 
     auto lp = g_LocalPlayer;
 
-    if (!lp || !lp->RootComponent || !mainFont) {
+    if (!lp || !lp->RootComponent || !mainFont || !d) {
         ImGui::End(); ImGui::PopStyleVar(); return;
     }
 
@@ -1127,8 +1168,8 @@ void Drawesp() {
     if (!g_PlayerController) { ImGui::End(); ImGui::PopStyleVar(); return; }
     g_PlayerController->GetViewportSize(&viewportWidth, &viewportHeight);
     if (viewportWidth <= 0 || viewportHeight <= 0) { ImGui::End(); ImGui::PopStyleVar(); return; }
-    espProjectionScale = ImVec2(ImGui::GetIO().DisplaySize.x / viewportWidth,
-                                ImGui::GetIO().DisplaySize.y / viewportHeight);
+    espProjectionScale = ImVec2(displaySize.x / viewportWidth,
+                                displaySize.y / viewportHeight);
     int localTeamID = lp->TeamID;
     static std::vector<ASTExtraPlayerCharacter*> cache;
     static float lastUpdate = 0.f;
@@ -1140,10 +1181,8 @@ void Drawesp() {
         lastUpdate = now;
     }
     bool isVisible = false;
-    UGameplayStatics *gGameplayStatics = (UGameplayStatics *) UGameplayStatics::StaticClass();
 
     FVector lpPos = lp->RootComponent->K2_GetComponentLocation();
-    ImVec2 screenCenter(ImGui::GetIO().DisplaySize.x * 0.5f, ImGui::GetIO().DisplaySize.y * 0.5f);
     int totalEnemies1 = 0;
     int totalBots1 = 0;
     bool enemyAimingAtUs = false;
@@ -1245,8 +1284,10 @@ if (IsStyle == 0)
             if (auto wm = p->WeaponManagerComponent) {
                 auto slot = wm->GetCurrentUsingPropSlot();
                 if ((int)slot.GetValue() >= 1 && (int)slot.GetValue() <= 3)
-                    if (auto cw = wm->CurrentWeaponReplicated)
-                        wepName = cw->GetWeaponName().ToString();
+                    if (auto cw = wm->CurrentWeaponReplicated) {
+                        std::string candidate = cw->GetWeaponName().ToString();
+                        if (!candidate.empty()) wepName = candidate;
+                    }
             }
             const float wfs = 8.5f;
             ImVec2 wsz = mainFont->CalcTextSizeA(wfs, FLT_MAX, 0.0f, wepName.c_str());
@@ -1255,7 +1296,7 @@ if (IsStyle == 0)
             d->AddText(mainFont, wfs, wp, IM_COL32(255,210,70,255), wepName.c_str());
         }
 
-        if (imgui::Line && hs.X > 0.f && hs.Y > 0.f && hs.Y < ImGui::GetIO().DisplaySize.y) {
+        if (imgui::Line && hs.X > 0.f && hs.Y > 0.f && hs.Y < displaySize.y) {
             ImU32 lineColorU32 = boxU32;
             d->AddLine(HudLineOrigin(), ImVec2(hs.X, hs.Y), lineColorU32, lineThickness);
         }
@@ -1269,23 +1310,19 @@ else
      
         float totalWidthHalf = 45.0f * asize;
         float barHeight = 12.0f * asize;
-        
-        float hpHeight = 2.0f * asize;
-        
+        (void)totalWidthHalf;
+        (void)barHeight;
+        (void)0;
 
         teamColor(p->TeamID, 200.0f, 160.0f);
-
-ImColor espColor; if (p->bIsAI || p->bEnsure) { if (isVisible) espColor = ImColor(0, 255, 0); else espColor = ImColor(255, 255, 255); } else { if (isVisible) espColor = ImColor(0, 255, 0); else espColor = ImColor(255, 0, 0); }
 
         float headX = hs.X;
         float headY = hs.Y;
         float nameBoxTop = headY - (35.0f * asize);
-        float startX = headX - totalWidthHalf;
-        
-        float nameBoxBottom = nameBoxTop + barHeight;
+        (void)nameBoxTop;
 
 
-if (imgui::Line && hs.X > 0.f && hs.Y > 0.f && hs.Y < ImGui::GetIO().DisplaySize.y) { ImVec2 screenCenter = HudLineOrigin(); bool isVisible = g_PlayerController->LineOfSightTo( g_PlayerController->PlayerCameraManager, p->GetBonePos("Head", {}), true ); ImU32 lineColorU32 = ImGui::GetColorU32(isVisible ? visibleColor : unvisibleColor); d->AddLine( screenCenter, ImVec2(hs.X, hs.Y), lineColorU32, lineThickness ); }
+if (imgui::Line && hs.X > 0.f && hs.Y > 0.f && hs.Y < displaySize.y) { ImVec2 screenCenter = HudLineOrigin(); bool lineVisible = g_PlayerController->LineOfSightTo( g_PlayerController->PlayerCameraManager, p->GetBonePos("Head", {}), true ); ImU32 lineColorU32 = ImGui::GetColorU32(lineVisible ? visibleColor : unvisibleColor); d->AddLine( screenCenter, ImVec2(hs.X, hs.Y), lineColorU32, lineThickness ); }
 
 ImVec2 hexCenter{};
 if (imgui::Health)  { hexCenter = DrawHealthVnHax(p, d); }
@@ -1300,9 +1337,12 @@ if (imgui::Weapon)    DrawWeaponName(p, d, textBorder);
     }  
 
 if (imgui::ESP && (imgui::EnemyCount || imgui::EnemyAiming || imgui::Line)) {
-    const float scale = ImClamp(ImGui::GetIO().DisplaySize.y / 592.f, .55f, 1.4f);
-    DrawMenuHudBadge(ImGui::GetForegroundDrawList(),
-                      ImVec2(ImGui::GetIO().DisplaySize.x * .5f, 32.f * scale), 60.f * scale);
+    ImDrawList* fg = ImGui::GetForegroundDrawList();
+    if (fg) {
+        const float scale = ImClamp(displaySize.y / 592.f, .55f, 1.4f);
+        DrawMenuHudBadge(fg,
+                          ImVec2(displaySize.x * .5f, 32.f * scale), 60.f * scale);
+    }
 }
 if (imgui::ESP && imgui::EnemyCount)
     DrawEnemyCounters(totalEnemies1, totalBots1);
