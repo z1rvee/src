@@ -17,6 +17,7 @@ SDK_MM_FILES  = $(wildcard SDK/*.mm)
 ESP_FILES = Engine.mm \
             Esp.mm \
             Menu.mm \
+            KeySystem.mm \
             $(SDK_CPP_FILES) \
             $(SDK_MM_FILES) \
             ESP/HeeeNoScreenShotView.m \
