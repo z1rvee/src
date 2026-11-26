@@ -11,9 +11,14 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = ESP
 
+SDK_CPP_FILES = $(wildcard SDK/*.cpp)
+SDK_MM_FILES  = $(wildcard SDK/*.mm)
+
 ESP_FILES = Engine.mm \
             Esp.mm \
             Menu.mm \
+            $(SDK_CPP_FILES) \
+            $(SDK_MM_FILES) \
             ESP/HeeeNoScreenShotView.m \
             ESP/HideFunsion.m \
             ESP/PubgLoad.mm \
